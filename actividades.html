@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planes y Actividades - Rural Planner</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --deep-forest: #1a2e18; 
+            --dark-wood: #2c1e14;   
+            --forest-green: #2d5a27;
+            --cream-paper: #fdfbf7;
+            --accent-gold: #c5a059;
+            --card-bg: #233621;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--deep-forest);
+            color: var(--cream-paper);
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 3vw 5vw;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--forest-green);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        h1 { margin: 0; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: var(--accent-gold); }
+
+        .btn-back {
+            background: var(--forest-green);
+            color: white;
+            padding: 10px 25px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 700;
+            transition: 0.3s;
+        }
+        .btn-back:hover { background: var(--dark-wood); }
+
+        .user-bar {
+            background: rgba(0,0,0,0.3);
+            padding: 15px 25px;
+            border-radius: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            border: 1px solid var(--forest-green);
+        }
+
+        .user-bar select {
+            padding: 8px 15px;
+            border-radius: 10px;
+            border: 1px solid var(--accent-gold);
+            background: var(--dark-wood);
+            color: var(--cream-paper);
+            font-family: inherit;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .plan-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: transform 0.3s;
+        }
+        .plan-card:hover { transform: translateY(-8px); }
+
+        .plan-img {
+            width: 100%;
+            height: 200px;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            background-color: #111;
+        }
+
+        .likes-badge {
+            position: absolute;
+            top: 15px; right: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            padding: 8px 15px;
+            border-radius: 50px;
+            font-weight: 900;
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+            z-index: 5;
+        }
+
+        .cat-emoji {
+            position: absolute;
+            bottom: -20px; left: 20px;
+            font-size: 2rem;
+            background: var(--dark-wood);
+            width: 50px; height: 50px;
+            display: flex; justify-content: center; align-items: center;
+            border-radius: 50px;
+            border: 2px solid var(--accent-gold);
+            z-index: 5;
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 15px; left: 15px;
+            background: rgba(255, 60, 60, 0.9); color: white;
+            border: none; padding: 6px 12px; border-radius: 8px;
+            cursor: pointer; font-weight: bold; transition: 0.2s;
+            z-index: 10; 
+        }
+        .delete-btn:hover { background: red; transform: scale(1.05); }
+
+        .plan-info { padding: 35px 20px 20px 20px; flex-grow: 1; display: flex; flex-direction: column; }
+        .plan-info h3 { margin: 0 0 5px 0; font-size: 1.5rem; color: var(--cream-paper); }
+        .plan-price { font-size: 1.6rem; font-weight: 900; color: var(--accent-gold); margin-bottom: 10px; }
+        .plan-desc { font-size: 0.9rem; opacity: 0.7; margin-bottom: 15px; flex-grow: 1; }
+        
+        .voters-list { font-size: 0.8rem; color: #aaa; margin-bottom: 15px; font-style: italic; }
+
+        .vote-section { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        
+        .btn-vote {
+            flex-grow: 1;
+            background: transparent;
+            border: 2px solid var(--accent-gold);
+            color: var(--accent-gold);
+            padding: 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 900;
+            transition: 0.2s;
+        }
+        .btn-vote.active { background: var(--accent-gold); color: var(--dark-wood); }
+        
+        .btn-link {
+            padding: 10px 15px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-size: 0.9rem;
+        }
+        .btn-link:hover { background: rgba(255,255,255,0.2); }
+
+        .add-plan-section {
+            background: var(--dark-wood);
+            padding: 30px;
+            border-radius: 25px;
+            border: 1px dashed var(--accent-gold);
+            margin-top: auto;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .form-grid input, .form-grid select {
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            font-family: inherit;
+            background: rgba(255,255,255,0.9);
+            color: var(--dark-wood);
+            font-size: 1rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .file-upload-wrapper {
+            background: rgba(255,255,255,0.9);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+        }
+        .file-upload-wrapper input[type="file"] { background: transparent; padding: 10px 5px; }
+
+        .btn-add {
+            background: var(--accent-gold);
+            color: var(--dark-wood);
+            border: none;
+            padding: 15px;
+            border-radius: 12px;
+            font-weight: 900;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: 0.3s;
+            grid-column: 1 / -1;
+        }
+        .btn-add:hover { background: white; transform: scale(1.01); }
+
+        .summary-bar {
+            margin-top: 30px;
+            background: rgba(0,0,0,0.4);
+            padding: 20px;
+            border-radius: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 5px solid var(--accent-gold);
+        }
+
+        .summary-text { font-size: 1.1rem; opacity: 0.8; }
+        .summary-price { font-size: 2.5rem; color: var(--accent-gold); font-weight: 900; }
+
+        @media (max-width: 800px) {
+            .summary-bar { flex-direction: column; text-align: center; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🏄‍♂️ Planes y Reservas</h1>
+        <a href="index.html" class="btn-back">⬅ Dashboard</a>
+    </header>
+
+    <div class="user-bar">
+        <span style="font-size: 1.2rem; font-weight: bold; color: var(--accent-gold);">¿Quién eres?</span>
+        <select id="user-selector" onchange="renderizarPlanes()">
+            <option value="" disabled selected>Selecciona tu nombre...</option>
+        </select>
+    </div>
+
+    <div class="plans-grid" id="plans-container"></div>
+
+    <div class="summary-bar">
+        <div class="summary-text">
+            <b>TU PRESUPUESTO EN ACTIVIDADES</b><br>
+            <small>(Suma de los planes a los que has dado Like)</small>
+        </div>
+        <div class="summary-price" id="personal-total">0.00€</div>
+    </div>
+
+    <div class="add-plan-section">
+        <h2 style="margin:0; color: var(--accent-gold);">➕ Proponer Actividad</h2>
+        <p style="margin: 5px 0 0 0; opacity: 0.7;">Añade una foto, el link del local y el precio para que todos voten.</p>
+        
+        <div class="form-grid">
+            <input type="text" id="p-name" placeholder="Nombre (ej: Clase de Surf)">
+            
+            <select id="p-cat">
+                <option value="aventura">🥾 Aventura / Deporte</option>
+                <option value="agua">🏄‍♂️ Actividad Acuática</option>
+                <option value="juegos">🎲 Juegos / Escape Room</option>
+                <option value="comida">🍷 Restaurante / Cata</option>
+                <option value="fiesta">🎉 Fiesta / Local</option>
+            </select>
+
+            <input type="number" id="p-price" placeholder="Precio por persona (€)">
+            <input type="text" id="p-desc" placeholder="Detalles (Ej: Incluye traje)">
+            <input type="text" id="p-url" placeholder="Link de la empresa (Opcional)">
+            
+            <div class="file-upload-wrapper">
+                <input type="file" id="p-file" accept="image/*" title="Sube una foto del plan">
+            </div>
+
+            <button class="btn-add" onclick="procesarNuevoPlan()">Añadir a Votación</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let planes = [];
+    let participantes = [];
+
+    const emojis = {
+        'aventura': '🥾',
+        'agua': '🏄‍♂️',
+        'juegos': '🎲',
+        'comida': '🍷',
+        'fiesta': '🎉'
+    };
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const pGuardados = localStorage.getItem('miembrosViajeRural');
+        if(pGuardados) {
+            participantes = JSON.parse(pGuardados);
+            const selector = document.getElementById('user-selector');
+            participantes.forEach(p => {
+                let opt = document.createElement('option');
+                opt.value = p; opt.innerText = p;
+                selector.appendChild(opt);
+            });
+            if(participantes.length > 0) selector.value = participantes[0];
+        }
+
+        const planesGuardados = localStorage.getItem('actividadesRural');
+        if(planesGuardados) {
+            planes = JSON.parse(planesGuardados);
+        }
+        
+        renderizarPlanes();
+    });
+
+    function procesarNuevoPlan() {
+        const nombre = document.getElementById('p-name').value;
+        const categoria = document.getElementById('p-cat').value;
+        const precio = parseFloat(document.getElementById('p-price').value) || 0;
+        const desc = document.getElementById('p-desc').value || '';
+        const url = document.getElementById('p-url').value || '#';
+        const archivo = document.getElementById('p-file').files[0];
+
+        if (!nombre) {
+            alert("El nombre de la actividad es obligatorio.");
+            return;
+        }
+
+        if (archivo) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                agregarPlanBase(nombre, categoria, precio, desc, url, e.target.result);
+            };
+            reader.readAsDataURL(archivo);
+        } else {
+            const imgPorDefecto = 'https://images.unsplash.com/photo-1533560904424-a0c61dc306fc?auto=format&fit=crop&w=800&q=80';
+            agregarPlanBase(nombre, categoria, precio, desc, url, imgPorDefecto);
+        }
+    }
+
+    function agregarPlanBase(nombre, categoria, precio, desc, url, imgData) {
+        const nuevoPlan = {
+            id: Date.now(),
+            nombre,
+            categoria,
+            precio,
+            desc,
+            url,
+            img: imgData,
+            votos: [] 
+        };
+        
+        planes.push(nuevoPlan);
+        
+        try {
+            guardarYRenderizar();
+            document.getElementById('p-name').value = '';
+            document.getElementById('p-price').value = '';
+            document.getElementById('p-desc').value = '';
+            document.getElementById('p-url').value = '';
+            document.getElementById('p-file').value = '';
+        } catch (error) {
+            planes.pop();
+            alert("❌ La foto es demasiado pesada. Sube una captura de pantalla.");
+        }
+    }
+
+    function votar(planId) {
+        const usuario = document.getElementById('user-selector').value;
+        if(!usuario) return alert("Selecciona tu nombre arriba para votar.");
+
+        const plan = planes.find(p => p.id === planId);
+        const indexVoto = plan.votos.indexOf(usuario);
+
+        if(indexVoto === -1) {
+            plan.votos.push(usuario);
+        } else {
+            plan.votos.splice(indexVoto, 1);
+        }
+        guardarYRenderizar();
+    }
+
+    function borrarPlan(id) {
+        if(confirm("¿Seguro que quieres borrar esta propuesta de actividad?")) {
+            // AQUÍ ESTABA EL ERROR: Cambiado == por != para que borre de verdad
+            planes = planes.filter(p => p.id != id);
+            guardarYRenderizar();
+        }
+    }
+
+    function guardarYRenderizar() {
+        planes.sort((a, b) => b.votos.length - a.votos.length);
+        localStorage.setItem('actividadesRural', JSON.stringify(planes));
+        renderizarPlanes();
+    }
+
+    function renderizarPlanes() {
+        const container = document.getElementById('plans-container');
+        container.innerHTML = '';
+        
+        const usuarioActual = document.getElementById('user-selector').value;
+        let costePersonal = 0;
+
+        if (planes.length === 0) {
+            container.innerHTML = '<p style="grid-column: 1/-1; text-align:center; opacity:0.5; font-size:1.2rem;">No hay actividades propuestas. ¡Añade una abajo!</p>';
+        }
+
+        planes.forEach(plan => {
+            const haVotado = plan.votos.includes(usuarioActual);
+            const totalLikes = plan.votos.length;
+            
+            if(haVotado) {
+                costePersonal += plan.precio;
+            }
+
+            const textoVotantes = totalLikes > 0 
+                ? `Votado por: ${plan.votos.join(', ')}` 
+                : 'Sin votos aún';
+
+            const urlBtn = plan.url !== '#' 
+                ? `<a href="${plan.url}" target="_blank" class="btn-link">🔗 Info</a>` 
+                : '';
+
+            container.innerHTML += `
+                <div class="plan-card">
+                    <button class="delete-btn" onclick="borrarPlan(${plan.id})" title="Borrar Actividad">🗑️</button>
+                    
+                    <div class="plan-img" style="background-image: url('${plan.img}')">
+                        <div class="likes-badge">❤️ ${totalLikes}</div>
+                        <div class="cat-emoji">${emojis[plan.categoria]}</div>
+                    </div>
+                    
+                    <div class="plan-info">
+                        <h3>${plan.nombre}</h3>
+                        <span class="plan-price">${plan.precio > 0 ? plan.precio + '€' : '¡Gratis!'}</span>
+                        <p class="plan-desc">${plan.desc}</p>
+                        <p class="voters-list">${textoVotantes}</p>
+                        
+                        <div class="vote-section">
+                            <button class="btn-vote ${haVotado ? 'active' : ''}" onclick="votar(${plan.id})">
+                                ${haVotado ? 'Confirmado' : 'Me apunto'}
+                            </button>
+                            ${urlBtn}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        document.getElementById('personal-total').innerText = costePersonal.toFixed(2) + "€";
+    }
+</script>
+
+</body>
+</html>
