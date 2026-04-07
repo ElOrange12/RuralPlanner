@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Votación de Casas Rurales</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+    	:root {
+    --primary-color: #2e7d32;
+    --bg-color: #f5f5f5;
+    --card-bg: #ffffff;
+    --text-color: #333;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background-color: var(--primary-color);
+    color: white;
+    text-align: center;
+    padding: 1rem 0;
+}
+
+main {
+    max-width: 1000px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.form-section {
+    background: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+form {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+input {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+button:hover {
+    background-color: #1b5e20;
+}
+
+/* Grid para las casas */
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.casa-card {
+    background: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.casa-card h3 {
+    margin-top: 0;
+}
+
+.casa-card a {
+    color: var(--primary-color);
+    text-decoration: none;
+    word-break: break-all;
+    margin-bottom: 1rem;
+}
+
+.casa-card a:hover {
+    text-decoration: underline;
+}
+
+.vote-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    border-top: 1px solid #eee;
+    padding-top: 1rem;
+}
+
+.vote-btn {
+    background-color: #f39c12;
+}
+
+.vote-btn:hover {
+    background-color: #e67e22;
+}
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🏕️ Escapada Rural: Votaciones</h1>
+    </header>
+
+    <main>
+        <section class="form-section">
+            <h2>Añadir nueva casa</h2>
+            <form id="form-casa">
+                <input type="text" id="nombre-casa" placeholder="Nombre (ej. La casa de la piscina)" required>
+                <input type="url" id="url-casa" placeholder="Enlace (Airbnb, Booking...)" required>
+                <button type="submit">Subir Casa</button>
+            </form>
+        </section>
+
+        <section class="gallery-section">
+            <h2>Casas Propuestas</h2>
+            <div id="lista-casas" class="grid-container">
+                </div>
+        </section>
+    </main>
+
+    <script>
+    	// Importamos las funciones necesarias de Firebase desde su CDN
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import { 
+    getFirestore, 
+    collection, 
+    addDoc, 
+    onSnapshot, 
+    doc, 
+    updateDoc, 
+    increment 
+} from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+// --- CONFIGURACIÓN DE FIREBASE ---
+// IMPORTANTE: Tienes que sustituir este objeto por el que te dé Firebase al crear tu proyecto
+const firebaseConfig = {
+  apiKey: "TU_API_KEY",
+  authDomain: "tu-proyecto.firebaseapp.com",
+  projectId: "tu-proyecto",
+  storageBucket: "tu-proyecto.appspot.com",
+  messagingSenderId: "TU_SENDER_ID",
+  appId: "TU_APP_ID"
+};
+
+// Inicializamos Firebase y la Base de Datos (Firestore)
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// Referencias al DOM
+const formCasa = document.getElementById('form-casa');
+const listaCasas = document.getElementById('lista-casas');
+
+// --- AÑADIR UNA CASA ---
+formCasa.addEventListener('submit', async (e) => {
+    e.preventDefault(); // Evita que la página se recargue
+
+    const nombre = document.getElementById('nombre-casa').value;
+    const url = document.getElementById('url-casa').value;
+
+    try {
+        // Guardamos el documento en la colección "casas"
+        await addDoc(collection(db, "casas"), {
+            nombre: nombre,
+            url: url,
+            votos: 0, // Inicializamos los votos a 0
+            fecha: new Date()
+        });
+        formCasa.reset(); // Limpiamos el formulario
+    } catch (error) {
+        console.error("Error al añadir la casa: ", error);
+        alert("Hubo un error al guardar la casa.");
+    }
+});
+
+// --- LEER Y MOSTRAR LAS CASAS (En tiempo real) ---
+// onSnapshot escucha los cambios en la base de datos automáticamente
+onSnapshot(collection(db, "casas"), (querySnapshot) => {
+    listaCasas.innerHTML = ''; // Limpiamos la lista antes de volver a pintarla
+    
+    querySnapshot.forEach((documento) => {
+        const casa = documento.data();
+        const id = documento.id;
+
+        // Creamos la tarjeta HTML para cada casa
+        const card = document.createElement('div');
+        card.className = 'casa-card';
+        card.innerHTML = `
+            <div>
+                <h3>${casa.nombre}</h3>
+                <a href="${casa.url}" target="_blank" rel="noopener noreferrer">Ver alojamiento ↗</a>
+            </div>
+            <div class="vote-section">
+                <span>Votos: <strong>${casa.votos}</strong></span>
+                <button class="vote-btn" data-id="${id}">👍 Votar</button>
+            </div>
+        `;
+
+        listaCasas.appendChild(card);
+    });
+
+    // Añadimos el evento de votar a todos los botones recién creados
+    document.querySelectorAll('.vote-btn').forEach(boton => {
+        boton.addEventListener('click', (e) => votarCasa(e.target.dataset.id));
+    });
+});
+
+// --- VOTAR UNA CASA ---
+async function votarCasa(idCasa) {
+    const casaRef = doc(db, "casas", idCasa);
+    try {
+        // Incrementamos el campo 'votos' en 1 en la base de datos
+        await updateDoc(casaRef, {
+            votos: increment(1)
+        });
+    } catch (error) {
+        console.error("Error al votar: ", error);
+    }
+}
+    </script>
+</body>
+</html>
