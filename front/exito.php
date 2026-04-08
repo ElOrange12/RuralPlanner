@@ -275,6 +275,11 @@ if (!isset($_SESSION['user_id'])) {
 <div class="feed-container">
     <h1>
         🌲 Plan Rural Amigos 🌲
+        
+        <?php if ($_SESSION['rol'] === 'admin'): ?>
+            <a href="admin.php" style="position:absolute; left:0; top:50%; transform:translateY(-50%); background:var(--accent-gold); color:white; padding:8px 15px; border-radius:10px; text-decoration:none; font-size:1rem;">⚙️ Admin</a>
+        <?php endif; ?>
+        
         <a href="controladores/logout.php" class="btn-logout">Salir</a>
     </h1>
 

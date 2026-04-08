@@ -232,10 +232,9 @@ $es_admin = ($_SESSION['rol'] === 'admin');
 
     <div class="houses-grid" id="houses-container"></div>
 
-    <?php if ($es_admin): ?>
     <div class="add-house-section">
         <h2 style="margin:0; color: var(--accent-gold);">➕ Añadir Nueva Casa Candidata</h2>
-        <p style="margin: 5px 0 0 0; opacity: 0.7;">Solo tú (Administrador) puedes proponer opciones.</p>
+        <p style="margin: 5px 0 0 0; opacity: 0.7;">Rellena los datos y sube una foto desde tu dispositivo.</p>
         
         <div class="form-grid">
             <input type="text" id="h-name" placeholder="Nombre (ej: Villa Bosque)">
@@ -249,7 +248,6 @@ $es_admin = ($_SESSION['rol'] === 'admin');
             <button class="btn-add" onclick="procesarNuevaCasa()">Añadir a la lista</button>
         </div>
     </div>
-    <?php endif; ?>
 </div>
 
 <script>
@@ -315,7 +313,7 @@ $es_admin = ($_SESSION['rol'] === 'admin');
     }
 
     function votar(casaId) {
-        // Ya no buscamos el select, usamos la variable que nos dio PHP
+        // Usamos la variable inyectada de la sesión PHP para votar
         const casa = casas.find(c => c.id === casaId);
         const indexVoto = casa.votos.indexOf(usuarioLogueado);
 
@@ -345,12 +343,11 @@ $es_admin = ($_SESSION['rol'] === 'admin');
         container.innerHTML = '';
 
         if (casas.length === 0) {
-            container.innerHTML = '<p style="text-align:center; grid-column: 1/-1; opacity:0.5; font-size:1.2rem;">Aún no hay casas. El administrador debe proponer opciones.</p>';
+            container.innerHTML = '<p style="text-align:center; grid-column: 1/-1; opacity:0.5; font-size:1.2rem;">Aún no hay casas. ¡Sé el primero en proponer una!</p>';
             return;
         }
 
         casas.forEach(casa => {
-            // Usamos la variable inyectada para comprobar el estado del voto
             const haVotado = casa.votos.includes(usuarioLogueado);
             const totalLikes = casa.votos.length;
             
@@ -358,7 +355,7 @@ $es_admin = ($_SESSION['rol'] === 'admin');
                 ? `Votado por: ${casa.votos.join(', ')}` 
                 : 'Sé el primero en votar';
 
-            // Solo inyectamos el botón de borrar si el JS sabe que es admin
+            // El botón de borrar SOLO se pinta si el usuario actual es admin
             const botonBorrar = esAdministrador ? `<button class="delete-house" onclick="borrarCasa(${casa.id})">🗑️ Borrar</button>` : '';
 
             container.innerHTML += `
