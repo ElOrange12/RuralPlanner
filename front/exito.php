@@ -1,30 +1,45 @@
 <?php
-	session_start();
-	require_once 'inc/bd.php';
-	if (!isset($_SESSION['user_id'])) { header("Location: index.php"); exit(); }
+// ¡El candado de seguridad! Si no hay sesión iniciada, lo echamos al login.
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit();
+}
 
-	$id_user = $_SESSION['user_id'];
+$es_admin = ($_SESSION['rol'] === 'admin');
 
-	// 1. Obtener la casa más votada (la que se muestra en el dashboard)
-	$casa = $pdo->query("SELECT c.*, COUNT(v.id_casa) as votos FROM casas c LEFT JOIN votos_casas v ON c.id_casa = v.id_casa GROUP BY c.id_casa ORDER BY votos DESC LIMIT 1")->fetch();
-	$gasto_casa = $casa['precio'] ?? 0;
+// Conectamos a la base de datos para extraer los totales reales
+require_once 'inc/bd.php';
 
-	// 2. Suma de la lista de la compra total
-	$gasto_compra = $pdo->query("SELECT SUM(precio_estimado) FROM lista_compra")->fetchColumn() ?: 0;
+try {
+    // 1. Buscamos la casa más votada y su foto
+    $stmt_casa = $pdo->query("SELECT c.*, COUNT(v.id_casa) as votos FROM casas c LEFT JOIN votos_casas v ON c.id_casa = v.id_casa GROUP BY c.id_casa ORDER BY votos DESC LIMIT 1");
+    $casa_top = $stmt_casa->fetch();
+    
+    $precio_casa = $casa_top ? (float)$casa_top['precio'] : 0;
+    $img_casa = ($casa_top && !empty($casa_top['url_imagen'])) ? $casa_top['url_imagen'] : 'https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&w=800&q=80';
+    $nombre_casa = $casa_top ? $casa_top['nombre'] : '¿A dónde vamos?';
 
-	// 3. Gasto de transporte (configuración única)
-	$gasto_transporte = $pdo->query("SELECT coste_total FROM transporte WHERE id_config = 1")->fetchColumn() ?: 0;
+    // 2. Extraemos el resto de gastos
+    $precio_transporte = (float)($pdo->query("SELECT SUM(coste_total) FROM transporte")->fetchColumn() ?: 0);
+    $precio_compra = (float)($pdo->query("SELECT SUM(precio_estimado) FROM lista_compra")->fetchColumn() ?: 0);
+    
+    // Sumar el precio de la actividad POR CADA persona que le ha dado a "Me apunto"
+    $precio_actividades = (float)($pdo->query("
+        SELECT SUM(a.precio) 
+        FROM actividades a 
+        JOIN votos_actividades v ON a.id_actividad = v.id_actividad
+    ")->fetchColumn() ?: 0);
 
-	// 4. Gasto personal de actividades (solo a las que te has apuntado)
-	$stmt_act = $pdo->prepare("SELECT SUM(a.precio) FROM actividades a JOIN votos_actividades v ON a.id_actividad = v.id_actividad WHERE v.id_usuario = ?");
-	$stmt_act->execute([$id_user]);
-	$gasto_actividades = $stmt_act->fetchColumn() ?: 0;
+    // Suma total calculada desde el servidor
+    $total_final_bd = $precio_casa + $precio_transporte + $precio_compra + $precio_actividades;
 
-	$total_general = $gasto_casa + $gasto_compra + $gasto_transporte + $gasto_actividades;
-	$num_amigos = $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn() ?: 1;
-
-	// 5. Lista de nombres de amigos para la card
-	$amigos = $pdo->query("SELECT nombre FROM usuarios")->fetchAll();
+} catch (PDOException $e) {
+    // Valores de seguridad por si algo falla
+    $total_final_bd = 0;
+    $img_casa = 'https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&w=800&q=80';
+    $nombre_casa = 'Error al cargar';
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -35,7 +50,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     
     <style>
-        /* PALETA RURAL */
+        /* PALETA RURAL (TU CSS ORIGINAL INTACTO) */
         :root {
             --forest-green: #2d5a27;
             --wood-brown: #4b3621;
@@ -55,7 +70,6 @@
             overflow-x: hidden;
         }
 
-        /* CONTENEDOR FLUIDO: Ocupa todo el espacio */
         .feed-container {
             width: 100%;
             min-height: 100vh;
@@ -78,7 +92,6 @@
             position: relative;
         }
 
-        /* Botón sutil de Cerrar Sesión */
         .btn-logout {
             position: absolute;
             right: 0;
@@ -94,7 +107,6 @@
         }
         .btn-logout:hover { background: #c0392b; }
 
-        /* SECCIÓN SUPERIOR: Se adapta a pantalla completa */
         .top-section {
             display: grid;
             grid-template-columns: 2fr 1fr;
@@ -103,14 +115,14 @@
             flex-grow: 1;
         }
 
-        /* FOTO ELEGIR CASA */
         .house-selector {
             position: relative;
             min-height: 400px;
             border-radius: 25px;
             overflow: hidden;
             border: 5px solid var(--wood-brown);
-            background-image: url('https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8Y2FiYSVDMyVCMWElMjBlbiUyMGVsJTIwYm9zcXVlfGVufDB8fDB8fHww');
+            /* LA IMAGEN AHORA LA PONE PHP AQUI ABAJO EN EL HTML, ESTE ES EL PLACEHOLDER */
+            background-image: url('https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8');
             background-size: cover;
             background-position: center;
             box-shadow: 0 10px 30px rgba(0,0,0,0.15);
@@ -153,7 +165,6 @@
             transform: scale(1.05);
         }
 
-        /* LISTA AMIGOS */
         .members-card {
             background: #f4f0e6;
             padding: 30px;
@@ -223,7 +234,6 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
 
-        /* BOTONES NAVEGACIÓN */
         .nav-buttons {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
@@ -252,7 +262,6 @@
         .btn-nav.alt { background: var(--wood-brown); box-shadow: 0 6px 0 #2a1f12; }
         .btn-nav.dark { background: var(--black-matte); box-shadow: 0 6px 0 #000; }
 
-        /* PRESUPUESTO FINAL */
         .footer-budget {
             margin-top: 40px;
             background: var(--black-matte);
@@ -280,7 +289,6 @@
             margin-top: 10px;
         }
 
-        /* Responsive para móviles */
         @media (max-width: 800px) {
             .top-section { grid-template-columns: 1fr; }
             .nav-buttons { grid-template-columns: 1fr; }
@@ -304,19 +312,23 @@
     </h1>
 
     <div class="top-section">
-        <div class="house-selector" id="main-house-img">
+        <div class="house-selector" id="main-house-img" style="background-image: url('<?= $img_casa ?>');">
             <div class="house-overlay">
-                <h2 id="main-house-title">¿A dónde vamos?</h2>
+                <h2 id="main-house-title">🏆 <?= htmlspecialchars($nombre_casa) ?></h2>
                 <a href="votaciones.php" class="btn-choose">Votar Casa</a>
             </div>
         </div>
 
         <div class="members-card">
             <h3>👥 Asistentes (<span id="count-members">0</span>)</h3>
-            <div class="member-input-group">
-                <input type="text" id="nameInput" placeholder="Añade un amigo..." onkeypress="handleKeyPress(event)">
-                <button class="btn-add" onclick="addMember()">+</button>
-            </div>
+            
+            <?php if ($es_admin): ?>
+                <div class="member-input-group">
+                    <input type="text" id="nameInput" placeholder="Añade un amigo..." onkeypress="handleKeyPress(event)">
+                    <button class="btn-add" onclick="addMember()">+</button>
+                </div>
+            <?php endif; ?>
+
             <ul id="list-members"></ul>
         </div>
     </div>
@@ -341,6 +353,86 @@
         </div>
     </div>
 </div>
+
+<script>
+    let miembros = [];
+    
+    // Le pasamos a JS si el usuario actual es admin o no
+    const esAdmin = <?= json_encode($es_admin) ?>;
+    
+    // PHP inyecta el total calculado directamente de la base de datos
+    const totalPresupuesto = <?= (float)$total_final_bd ?>;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        cargarMiembros();
+        calcularPresupuestoTotal();
+    });
+
+    function cargarMiembros() {
+        const guardado = localStorage.getItem('miembrosViajeRural');
+        if (guardado) {
+            miembros = JSON.parse(guardado);
+        }
+        renderizarLista();
+    }
+
+    function guardarMiembros() {
+        localStorage.setItem('miembrosViajeRural', JSON.stringify(miembros));
+    }
+
+    function renderizarLista() {
+        const list = document.getElementById('list-members');
+        list.innerHTML = ''; 
+        
+        miembros.forEach((nombre, index) => {
+            const li = document.createElement('li');
+            
+            // Si es admin, pinta la X. Si no, solo el nombre.
+            const botonEliminar = esAdmin ? `<span style="cursor:pointer; color:#e74c3c; font-weight:bold;" onclick="eliminarMiembro(${index})">×</span>` : '';
+            
+            li.innerHTML = `<span>${nombre}</span> ${botonEliminar}`;
+            list.appendChild(li);
+        });
+
+        document.getElementById('count-members').innerText = miembros.length;
+        calcularPresupuestoTotal();
+    }
+
+    function addMember() {
+        const input = document.getElementById('nameInput');
+        const nombre = input.value.trim();
+        
+        if (nombre !== "") {
+            miembros.push(nombre); 
+            guardarMiembros();     
+            renderizarLista();     
+            input.value = "";      
+        }
+    }
+
+    function eliminarMiembro(index) {
+        miembros.splice(index, 1); 
+        guardarMiembros();         
+        renderizarLista();         
+    }
+
+    function handleKeyPress(event) {
+        if (event.key === 'Enter') {
+            addMember();
+        }
+    }
+
+    function calcularPresupuestoTotal() {
+        const numeroAmigos = miembros.length > 0 ? miembros.length : 1; 
+
+        // Pintamos el total traído de PHP
+        document.getElementById('total-price').innerText = totalPresupuesto.toFixed(2) + "€";
+        
+        // Calculamos la división
+        const precioPorPersona = totalPresupuesto / numeroAmigos;
+        document.getElementById('per-person').innerText = precioPorPersona.toFixed(2) + "€";
+    }
+</script>
 
 </body>
 </html>
