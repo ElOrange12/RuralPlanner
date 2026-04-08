@@ -1,3 +1,11 @@
+<?php
+// ¡El candado de seguridad! Si no hay sesión iniciada, lo echamos al login.
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit();
+}
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -47,7 +55,24 @@
             border-bottom: 3px solid var(--wood-brown);
             padding-bottom: 15px;
             margin-top: 0;
+            position: relative;
         }
+
+        /* Botón sutil de Cerrar Sesión */
+        .btn-logout {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #e74c3c;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+        .btn-logout:hover { background: #c0392b; }
 
         /* SECCIÓN SUPERIOR: Se adapta a pantalla completa */
         .top-section {
@@ -241,19 +266,23 @@
             .nav-buttons { grid-template-columns: 1fr; }
             .budget-grid { flex-direction: column; gap: 20px; }
             .budget-grid > div:nth-child(2) { border-left: none; border-top: 1px solid #444; padding-top: 20px; }
+            .btn-logout { position: static; display: block; width: fit-content; margin: 10px auto 0; transform: none; }
         }
     </style>
 </head>
 <body>
 
 <div class="feed-container">
-    <h1>🌲 Plan Rural Amigos 🌲</h1>
+    <h1>
+        🌲 Plan Rural Amigos 🌲
+        <a href="controladores/logout.php" class="btn-logout">Salir</a>
+    </h1>
 
     <div class="top-section">
         <div class="house-selector" id="main-house-img">
             <div class="house-overlay">
                 <h2 id="main-house-title">¿A dónde vamos?</h2>
-                <a href="votaciones.html" class="btn-choose">Votar Casa</a>
+                <a href="votaciones.php" class="btn-choose">Votar Casa</a>
             </div>
         </div>
 
@@ -268,9 +297,9 @@
     </div>
 
     <div class="nav-buttons">
-        <a href="transporte.html" class="btn-nav">🚗 Transporte</a>
-        <a href="compra.html" class="btn-nav alt">🛒 Compra</a>
-        <a href="actividades.html" class="btn-nav dark">🏹 Actividades</a>
+        <a href="transporte.php" class="btn-nav">🚗 Transporte</a>
+        <a href="compra.php" class="btn-nav alt">🛒 Compra</a>
+        <a href="actividades.php" class="btn-nav dark">🏹 Actividades</a>
     </div>
 
     <div class="footer-budget">
@@ -293,7 +322,6 @@
 
     document.addEventListener("DOMContentLoaded", () => {
         cargarMiembros();
-        // Llamamos a la calculadora al iniciar la página
         calcularPresupuestoTotal();
     });
 
@@ -322,10 +350,7 @@
             list.appendChild(li);
         });
 
-        // Actualizamos el contador visual de la tarjeta
         document.getElementById('count-members').innerText = miembros.length;
-
-        // Cada vez que la lista cambia, hay que recalcular por si somos más o menos para pagar
         calcularPresupuestoTotal();
     }
 
@@ -353,32 +378,27 @@
         }
     }
 
-    // MAGIA: FUNCIÓN QUE SUMA TODOS LOS MÓDULOS DE LA WEB
     function calcularPresupuestoTotal() {
         let totalAcumulado = 0;
-        const numeroAmigos = miembros.length > 0 ? miembros.length : 1; // Para no dividir entre 0
+        const numeroAmigos = miembros.length > 0 ? miembros.length : 1; 
 
-        // 1. Extraer precio de la CASA MÁS VOTADA (La que está primera en el JSON)
         const casasGuardadas = localStorage.getItem('casasViajeRural');
         if (casasGuardadas) {
             const casas = JSON.parse(casasGuardadas);
             if (casas.length > 0) {
                 totalAcumulado += parseFloat(casas[0].precio) || 0;
                 
-                // Extra: Mostrar la foto y nombre de la casa ganadora en el feed
                 document.getElementById('main-house-img').style.backgroundImage = `url('${casas[0].img}')`;
                 document.getElementById('main-house-title').innerText = "🏆 " + casas[0].nombre;
             }
         }
 
-        // 2. Extraer precio del TRANSPORTE
         const transporteGuardado = localStorage.getItem('transporteRural');
         if (transporteGuardado) {
             const transporte = JSON.parse(transporteGuardado);
             totalAcumulado += parseFloat(transporte.total) || 0;
         }
 
-        // 3. Extraer precio de la COMPRA
         const compraGuardada = localStorage.getItem('listaCompraRural');
         if (compraGuardada) {
             const compra = JSON.parse(compraGuardada);
@@ -387,7 +407,6 @@
             });
         }
 
-        // 4. Extraer precio de las ACTIVIDADES
         const actividadesGuardadas = localStorage.getItem('actividadesRural');
         if (actividadesGuardadas) {
             const actividades = JSON.parse(actividadesGuardadas);
@@ -396,7 +415,6 @@
             });
         }
 
-        // Actualizar la pantalla con los cálculos finales
         document.getElementById('total-price').innerText = totalAcumulado.toFixed(2) + "€";
         
         const precioPorPersona = totalAcumulado / numeroAmigos;

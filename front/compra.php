@@ -1,3 +1,13 @@
+<?php
+// Arrancamos la sesión
+session_start();
+
+// Si no hay un usuario logueado, lo expulsamos al login
+if (!isset($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit();
+}
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>

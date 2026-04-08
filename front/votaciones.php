@@ -1,3 +1,15 @@
+<?php
+// Arrancamos sesión y ponemos el candado
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit();
+}
+
+// Guardamos los datos de la sesión en variables de PHP para usarlas luego
+$nombre_usuario = $_SESSION['nombre'];
+$es_admin = ($_SESSION['rol'] === 'admin');
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -34,6 +46,7 @@
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
+            min-height: 100vh;
         }
 
         header {
@@ -58,34 +71,13 @@
         }
         .btn-back:hover { background: var(--dark-wood); }
 
-        .user-bar {
-            background: rgba(0,0,0,0.3);
-            padding: 15px 25px;
-            border-radius: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 40px;
-            border: 1px solid var(--forest-green);
-        }
-
-        .user-bar select {
-            padding: 8px 15px;
-            border-radius: 10px;
-            border: 1px solid var(--accent-gold);
-            background: var(--dark-wood);
-            color: var(--cream-paper);
-            font-family: inherit;
-            font-size: 1rem;
-            cursor: pointer;
-        }
-
         /* GRID DE CASAS */
         .houses-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 40px;
             margin-bottom: 60px;
+            margin-top: 20px;
         }
 
         .house-card {
@@ -203,7 +195,6 @@
             font-size: 1rem;
         }
 
-        /* Estilo para el input de archivo (Subir Foto) */
         .file-upload-wrapper {
             background: rgba(255,255,255,0.9);
             border-radius: 12px;
@@ -236,21 +227,15 @@
 <div class="container">
     <header>
         <h1>🏆 Votación de Casas</h1>
-        <a href="index.html" class="btn-back">⬅ Volver al Feed</a>
+        <a href="exito.php" class="btn-back">⬅ Volver al Feed</a>
     </header>
-
-    <div class="user-bar">
-        <span style="font-size: 1.2rem; font-weight: bold; color: var(--accent-gold);">¿Quién eres?</span>
-        <select id="user-selector" onchange="renderizarCasas()">
-            <option value="" disabled selected>Selecciona tu nombre...</option>
-        </select>
-    </div>
 
     <div class="houses-grid" id="houses-container"></div>
 
+    <?php if ($es_admin): ?>
     <div class="add-house-section">
         <h2 style="margin:0; color: var(--accent-gold);">➕ Añadir Nueva Casa Candidata</h2>
-        <p style="margin: 5px 0 0 0; opacity: 0.7;">Rellena los datos y sube una foto desde tu dispositivo.</p>
+        <p style="margin: 5px 0 0 0; opacity: 0.7;">Solo tú (Administrador) puedes proponer opciones.</p>
         
         <div class="form-grid">
             <input type="text" id="h-name" placeholder="Nombre (ej: Villa Bosque)">
@@ -264,34 +249,24 @@
             <button class="btn-add" onclick="procesarNuevaCasa()">Añadir a la lista</button>
         </div>
     </div>
+    <?php endif; ?>
 </div>
 
 <script>
     let casas = [];
-    let participantes = [];
+    
+    // Inyectamos las variables de PHP directamente en JavaScript
+    const usuarioLogueado = "<?= htmlspecialchars($nombre_usuario) ?>";
+    const esAdministrador = <?= $es_admin ? 'true' : 'false' ?>;
 
     document.addEventListener("DOMContentLoaded", () => {
-        const pGuardados = localStorage.getItem('miembrosViajeRural');
-        if(pGuardados) {
-            participantes = JSON.parse(pGuardados);
-            const selector = document.getElementById('user-selector');
-            participantes.forEach(p => {
-                let opt = document.createElement('option');
-                opt.value = p; opt.innerText = p;
-                selector.appendChild(opt);
-            });
-            if(participantes.length > 0) selector.value = participantes[0];
-        }
-
         const cGuardadas = localStorage.getItem('casasViajeRural');
         if(cGuardadas) {
             casas = JSON.parse(cGuardadas);
         }
-        
         renderizarCasas();
     });
 
-    // NUEVO: Proceso para leer la imagen antes de guardar
     function procesarNuevaCasa() {
         const nombre = document.getElementById('h-name').value;
         const precio = document.getElementById('h-price').value;
@@ -304,14 +279,12 @@
         }
 
         if (archivo) {
-            // Leer la foto y convertirla
             const reader = new FileReader();
             reader.onload = function(e) {
                 agregarCasaALaLista(nombre, precio, e.target.result, url);
             };
             reader.readAsDataURL(archivo);
         } else {
-            // Si no suben foto, ponemos una de bosque por defecto
             const imgPorDefecto = 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80';
             agregarCasaALaLista(nombre, precio, imgPorDefecto, url);
         }
@@ -331,34 +304,29 @@
         
         try {
             guardarYRenderizar();
-            // Limpiar inputs si todo ha ido bien
             document.getElementById('h-name').value = '';
             document.getElementById('h-price').value = '';
             document.getElementById('h-file').value = '';
             document.getElementById('h-url').value = '';
         } catch (error) {
-            // Si la foto es demasiado pesada, el navegador dará error de cuota
-            casas.pop(); // Borramos la casa que acabamos de meter
-            alert("❌ La foto es demasiado pesada para la memoria del navegador. Prueba a hacer una captura de pantalla de la foto y subir la captura (que pesa mucho menos).");
+            casas.pop(); 
+            alert("❌ La foto es demasiado pesada. Prueba con una captura.");
         }
     }
 
     function votar(casaId) {
-        const usuario = document.getElementById('user-selector').value;
-        if(!usuario) return alert("Por favor, selecciona tu nombre arriba antes de votar.");
-
+        // Ya no buscamos el select, usamos la variable que nos dio PHP
         const casa = casas.find(c => c.id === casaId);
-        const indexVoto = casa.votos.indexOf(usuario);
+        const indexVoto = casa.votos.indexOf(usuarioLogueado);
 
         if(indexVoto === -1) {
-            casa.votos.push(usuario); // Dar like
+            casa.votos.push(usuarioLogueado); // Dar like
         } else {
             casa.votos.splice(indexVoto, 1); // Quitar like
         }
         guardarYRenderizar();
     }
 
-    // El botón de borrar llama a esta función
     function borrarCasa(id) {
         if(confirm("¿Seguro que quieres borrar esta casa candidata?")) {
             casas = casas.filter(c => c.id !== id);
@@ -375,25 +343,27 @@
     function renderizarCasas() {
         const container = document.getElementById('houses-container');
         container.innerHTML = '';
-        
-        const usuarioActual = document.getElementById('user-selector').value;
 
         if (casas.length === 0) {
-            container.innerHTML = '<p style="text-align:center; grid-column: 1/-1; opacity:0.5; font-size:1.2rem;">Aún no hay casas. Añade una candidata abajo.</p>';
+            container.innerHTML = '<p style="text-align:center; grid-column: 1/-1; opacity:0.5; font-size:1.2rem;">Aún no hay casas. El administrador debe proponer opciones.</p>';
             return;
         }
 
         casas.forEach(casa => {
-            const haVotado = casa.votos.includes(usuarioActual);
+            // Usamos la variable inyectada para comprobar el estado del voto
+            const haVotado = casa.votos.includes(usuarioLogueado);
             const totalLikes = casa.votos.length;
             
             const textoVotantes = totalLikes > 0 
                 ? `Votado por: ${casa.votos.join(', ')}` 
                 : 'Sé el primero en votar';
 
+            // Solo inyectamos el botón de borrar si el JS sabe que es admin
+            const botonBorrar = esAdministrador ? `<button class="delete-house" onclick="borrarCasa(${casa.id})">🗑️ Borrar</button>` : '';
+
             container.innerHTML += `
                 <div class="house-card">
-                    <button class="delete-house" onclick="borrarCasa(${casa.id})">🗑️ Borrar</button>
+                    ${botonBorrar}
                     
                     <div class="house-img" style="background-image: url('${casa.img}')">
                         <div class="likes-badge">❤️ ${totalLikes}</div>

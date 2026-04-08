@@ -1,3 +1,11 @@
+<?php
+// Candado de seguridad: si no hay sesión, al login
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit();
+}
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -69,69 +77,23 @@
             border: 1px solid rgba(255,255,255,0.05);
         }
 
-        /* FOTO DECORATIVA DINÁMICA - MODIFICADA */
         .image-panel {
             background-size: cover;
             background-position: center;
             transition: background-image 0.5s ease-in-out;
-            min-height: 450px; /* Un poco más de altura */
+            min-height: 450px; 
             position: relative;
             display: flex;
             justify-content: center;
-            align-items: flex-end; /* Alinear contenido al fondo */
-            padding-bottom: 20px; /* Espacio para el panel de control */
+            align-items: flex-end; 
+            padding-bottom: 20px; 
         }
 
         .image-overlay {
             position: absolute;
             bottom: 0; left: 0; width: 100%;
             background: linear-gradient(to top, var(--card-bg) 0%, transparent 100%);
-            height: 120px; /* Overlay más pequeño */
-        }
-
-        /* PANEL DE CONTROL DE IMAGEN (NUEVO, ABAJO Y PEQUEÑO) */
-        .image-control-panel {
-            z-index: 5;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(5px);
-            padding: 10px 20px;
-            border-radius: 50px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            border: 1px solid rgba(255,255,255,0.2);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        }
-        
-        /* Ocultar el badge "NUEVO" para limpieza */
-        .badge-new {
-            display: none;
-        }
-        
-        .btn-change-img {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            transition: transform 0.2s ease;
-        }
-        .btn-change-img:hover { transform: scale(1.05); }
-        
-        .img-upload-button {
-            background: var(--accent-gold);
-            color: black;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 50px;
-            font-weight: 700;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .icon-upload {
-            font-size: 1.2rem;
+            height: 120px; 
         }
 
         .form-panel {
@@ -177,8 +139,6 @@
             .transport-layout { grid-template-columns: 1fr; }
             .image-panel { min-height: 250px; }
             .form-panel { padding: 30px; }
-            .image-control-panel { padding: 8px 15px; gap: 10px; }
-            .img-upload-button { padding: 8px 15px; font-size: 0.8rem; }
         }
     </style>
 </head>
@@ -187,24 +147,11 @@
 <div class="container">
     <header>
         <h1>🚗 Gestión de Transporte</h1>
-        <a href="index.html" class="btn-back">⬅ Volver al Feed</a>
+        <a href="exito.php" class="btn-back">⬅ Volver al Feed</a>
     </header>
 
     <div class="transport-layout">
         <div class="image-panel" id="transport-img">
-            
-            <input type="file" id="t-file" accept="image/*" style="display: none;" onchange="procesarImagenManual()">
-            
-            <div class="image-control-panel">
-                <div class="btn-change-img" onclick="document.getElementById('t-file').click()">
-                    <div class="badge-new">NUEVO</div>
-                    <button class="img-upload-button">
-                        <span class="icon-upload">☁️📸</span> 
-                        Cambiar Imagen
-                    </button>
-                </div>
-            </div>
-            
             <div class="image-overlay"></div>
         </div>
 
@@ -287,13 +234,12 @@
     let asistentes = 1;
     let costeTotal = 0;
 
+    // Aquí están tus nuevos personajes por defecto
     const imagenesDefecto = {
-        'coche': 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=800&q=80',
-        'tren': 'https://images.unsplash.com/photo-1474487548417-781cb7149d6b?auto=format&fit=crop&w=800&q=80',
-        'avion': 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80'
+        'coche': 'https://lumiere-a.akamaihd.net/v1/images/p_cars_19643_4405006d.jpeg', // Rayo McQueen
+        'tren': 'https://sm.ign.com/t/ign_es/screenshot/default/sin-titulo-1_7gkm.1280.jpg', // Thomas
+        'avion': 'https://www.twincities.com/wp-content/uploads/2015/11/20130806__130809m-Planes-2.jpg?w=1200&resize=1200,900' // Dusty
     };
-
-    let imagenesPersonalizadas = {};
 
     document.addEventListener("DOMContentLoaded", () => {
         const pGuardados = localStorage.getItem('miembrosViajeRural');
@@ -302,11 +248,6 @@
             asistentes = lista.length > 0 ? lista.length : 1;
         }
         document.getElementById('b-personas').value = asistentes;
-
-        const imgGuardadas = localStorage.getItem('transporteFotos');
-        if(imgGuardadas) {
-            imagenesPersonalizadas = JSON.parse(imgGuardadas);
-        }
 
         const transporteGuardado = localStorage.getItem('transporteRural');
         if(transporteGuardado) {
@@ -321,8 +262,8 @@
 
     function cambiarTransporte() {
         const seleccion = document.getElementById('transport-type').value;
-        const fotoAMostrar = imagenesPersonalizadas[seleccion] ? imagenesPersonalizadas[seleccion] : imagenesDefecto[seleccion];
-        document.getElementById('transport-img').style.backgroundImage = `url('${fotoAMostrar}')`;
+        // Asignamos la imagen directamente del diccionario de personajes
+        document.getElementById('transport-img').style.backgroundImage = `url('${imagenesDefecto[seleccion]}')`;
 
         document.querySelectorAll('.dynamic-form').forEach(f => f.classList.remove('active'));
         if (seleccion === 'coche') {
@@ -332,28 +273,6 @@
             document.getElementById('form-billetes').classList.add('active');
             calcularBilletes();
         }
-    }
-
-    // Función para procesar y guardar la imagen subida manualmente
-    function procesarImagenManual() {
-        const seleccion = document.getElementById('transport-type').value;
-        const archivo = document.getElementById('t-file').files[0];
-
-        if (!archivo) return;
-
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            imagenesPersonalizadas[seleccion] = e.target.result;
-            
-            try {
-                localStorage.setItem('transporteFotos', JSON.stringify(imagenesPersonalizadas));
-                cambiarTransporte();
-            } catch (error) {
-                delete imagenesPersonalizadas[seleccion];
-                alert("❌ La foto es demasiado pesada. Prueba a subir una imagen con menor resolución o una captura de pantalla.");
-            }
-        };
-        reader.readAsDataURL(archivo);
     }
 
     function calcularCoche() {
