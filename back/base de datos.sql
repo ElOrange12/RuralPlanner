@@ -105,3 +105,33 @@ GRANT ALL PRIVILEGES ON rural_planner.* TO 'AdminPlanner'@'localhost';
 
 -- 5. Recargamos los privilegios para que los cambios surtan efecto inmediato
 FLUSH PRIVILEGES;
+
+-- Cambios funcionales a la base de datos
+
+ALTER TABLE casas MODIFY url_web TEXT;
+
+ALTER TABLE casas MODIFY url_imagen LONGTEXT;
+
+ALTER TABLE actividades MODIFY url_imagen LONGTEXT;
+
+ALTER TABLE actividades 
+MODIFY url_web TEXT,
+MODIFY url_imagen LONGTEXT;
+
+ALTER TABLE actividades ADD COLUMN duracion DECIMAL(4,2) DEFAULT 0;
+
+ALTER TABLE actividades DROP COLUMN duracion;
+ALTER TABLE actividades ADD COLUMN hora_inicio TIME, ADD COLUMN hora_fin TIME;
+
+ALTER TABLE actividades DROP COLUMN duracion;
+ALTER TABLE actividades 
+ADD COLUMN hora_inicio TIME, 
+ADD COLUMN hora_finalizacion TIME;
+
+DROP TABLE IF EXISTS transporte;
+CREATE TABLE transporte (
+    id_trayecto INT AUTO_INCREMENT PRIMARY KEY,
+    tipo ENUM('coche', 'tren', 'avion') NOT NULL,
+    ruta VARCHAR(255) NOT NULL,
+    coste_total DECIMAL(10, 2) NOT NULL
+);
