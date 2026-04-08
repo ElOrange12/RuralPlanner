@@ -13,6 +13,9 @@ CREATE TABLE usuarios (
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+--Para hacer Admin:
+UPDATE usuarios SET rol = 'admin' WHERE id_usuario = ? ;
+
 -- ==========================================
 -- SECCIÓN CASAS
 -- ==========================================

@@ -127,7 +127,7 @@ try {
     <div class="stats-grid">
         <div class="stat-card">
             <div class="num"><?= $total_usuarios ?></div>
-            <div class="label">Amigos Listos</div>
+            <div class="label">Amigos Registrados</div>
         </div>
         <div class="stat-card">
             <div class="num"><?= $total_casas ?></div>
