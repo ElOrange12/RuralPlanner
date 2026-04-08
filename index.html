@@ -69,6 +69,7 @@
             background-size: cover;
             background-position: center;
             box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            transition: background-image 0.5s ease;
         }
 
         .house-overlay {
@@ -249,15 +250,15 @@
     <h1>🌲 Plan Rural Amigos 🌲</h1>
 
     <div class="top-section">
-        <div class="house-selector">
+        <div class="house-selector" id="main-house-img">
             <div class="house-overlay">
-                <h2>¿A dónde vamos?</h2>
-                <a href="votaciones.html" class="btn-choose">Elegir Casa</a>
+                <h2 id="main-house-title">¿A dónde vamos?</h2>
+                <a href="votaciones.html" class="btn-choose">Votar Casa</a>
             </div>
         </div>
 
         <div class="members-card">
-            <h3>👥 Asistentes</h3>
+            <h3>👥 Asistentes (<span id="count-members">0</span>)</h3>
             <div class="member-input-group">
                 <input type="text" id="nameInput" placeholder="Añade un amigo..." onkeypress="handleKeyPress(event)">
                 <button class="btn-add" onclick="addMember()">+</button>
@@ -273,49 +274,44 @@
     </div>
 
     <div class="footer-budget">
-        <h3 style="margin:0; font-size: 1.5rem; letter-spacing: 2px;">💰 RESUMEN DE GASTOS</h3>
+        <h3 style="margin:0; font-size: 1.5rem; letter-spacing: 2px;">💰 RESUMEN DE GASTOS TOTAL</h3>
         <div class="budget-grid">
             <div>
-                <span style="font-size: 1.2rem; opacity: 0.8;">TOTAL VIAJE</span>
-                <span class="price-big" id="total-price">0€</span>
+                <span style="font-size: 1.2rem; opacity: 0.8;">PRESUPUESTO GENERAL</span>
+                <span class="price-big" id="total-price">0.00€</span>
             </div>
             <div style="border-left: 2px solid #333;">
-                <span style="font-size: 1.2rem; opacity: 0.8;">POR PERSONA</span>
-                <span class="price-big" id="per-person" style="color: white;">0€</span>
+                <span style="font-size: 1.2rem; opacity: 0.8;">TOCAMOS A</span>
+                <span class="price-big" id="per-person" style="color: white;">0.00€</span>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // 1. Array principal donde guardaremos los datos
     let miembros = [];
 
-    // 2. Al cargar la página, recuperamos los datos guardados
     document.addEventListener("DOMContentLoaded", () => {
         cargarMiembros();
+        // Llamamos a la calculadora al iniciar la página
+        calcularPresupuestoTotal();
     });
 
-    // 3. Función para cargar desde localStorage
     function cargarMiembros() {
         const guardado = localStorage.getItem('miembrosViajeRural');
         if (guardado) {
-            // Convertimos de JSON a Array de nuevo
             miembros = JSON.parse(guardado);
         }
         renderizarLista();
     }
 
-    // 4. Función para guardar en localStorage
     function guardarMiembros() {
-        // Convertimos el Array a texto JSON
         localStorage.setItem('miembrosViajeRural', JSON.stringify(miembros));
     }
 
-    // 5. Función que "dibuja" la lista en el HTML
     function renderizarLista() {
         const list = document.getElementById('list-members');
-        list.innerHTML = ''; // Limpiamos la lista actual
+        list.innerHTML = ''; 
         
         miembros.forEach((nombre, index) => {
             const li = document.createElement('li');
@@ -325,33 +321,86 @@
             `;
             list.appendChild(li);
         });
+
+        // Actualizamos el contador visual de la tarjeta
+        document.getElementById('count-members').innerText = miembros.length;
+
+        // Cada vez que la lista cambia, hay que recalcular por si somos más o menos para pagar
+        calcularPresupuestoTotal();
     }
 
-    // 6. Añadir un miembro nuevo
     function addMember() {
         const input = document.getElementById('nameInput');
         const nombre = input.value.trim();
         
         if (nombre !== "") {
-            miembros.push(nombre); // Lo añadimos al Array
-            guardarMiembros();     // Lo guardamos en JSON
-            renderizarLista();     // Actualizamos la pantalla
-            input.value = "";      // Vaciamos el cuadro de texto
+            miembros.push(nombre); 
+            guardarMiembros();     
+            renderizarLista();     
+            input.value = "";      
         }
     }
 
-    // 7. Eliminar un miembro por su posición (index)
     function eliminarMiembro(index) {
-        miembros.splice(index, 1); // Lo quitamos del Array
-        guardarMiembros();         // Actualizamos el JSON guardado
-        renderizarLista();         // Actualizamos la pantalla
+        miembros.splice(index, 1); 
+        guardarMiembros();         
+        renderizarLista();         
     }
 
-    // Extra: Permitir añadir pulsando la tecla "Enter"
     function handleKeyPress(event) {
         if (event.key === 'Enter') {
             addMember();
         }
+    }
+
+    // MAGIA: FUNCIÓN QUE SUMA TODOS LOS MÓDULOS DE LA WEB
+    function calcularPresupuestoTotal() {
+        let totalAcumulado = 0;
+        const numeroAmigos = miembros.length > 0 ? miembros.length : 1; // Para no dividir entre 0
+
+        // 1. Extraer precio de la CASA MÁS VOTADA (La que está primera en el JSON)
+        const casasGuardadas = localStorage.getItem('casasViajeRural');
+        if (casasGuardadas) {
+            const casas = JSON.parse(casasGuardadas);
+            if (casas.length > 0) {
+                totalAcumulado += parseFloat(casas[0].precio) || 0;
+                
+                // Extra: Mostrar la foto y nombre de la casa ganadora en el feed
+                document.getElementById('main-house-img').style.backgroundImage = `url('${casas[0].img}')`;
+                document.getElementById('main-house-title').innerText = "🏆 " + casas[0].nombre;
+            }
+        }
+
+        // 2. Extraer precio del TRANSPORTE
+        const transporteGuardado = localStorage.getItem('transporteRural');
+        if (transporteGuardado) {
+            const transporte = JSON.parse(transporteGuardado);
+            totalAcumulado += parseFloat(transporte.total) || 0;
+        }
+
+        // 3. Extraer precio de la COMPRA
+        const compraGuardada = localStorage.getItem('listaCompraRural');
+        if (compraGuardada) {
+            const compra = JSON.parse(compraGuardada);
+            compra.forEach(item => {
+                totalAcumulado += parseFloat(item.precio) || 0;
+            });
+        }
+
+        // 4. Extraer precio de las ACTIVIDADES
+        const actividadesGuardadas = localStorage.getItem('actividadesRural');
+        if (actividadesGuardadas) {
+            const actividades = JSON.parse(actividadesGuardadas);
+            actividades.forEach(plan => {
+                totalAcumulado += parseFloat(plan.precio) || 0;
+            });
+        }
+
+        // Actualizar la pantalla con los cálculos finales
+        document.getElementById('total-price').innerText = totalAcumulado.toFixed(2) + "€";
+        
+        const precioPorPersona = totalAcumulado / numeroAmigos;
+        document.getElementById('per-person').innerText = precioPorPersona.toFixed(2) + "€";
     }
 </script>
 

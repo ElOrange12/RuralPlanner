@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de la Compra - Rural Planner</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --deep-forest: #1a2e18; 
+            --dark-wood: #2c1e14;   
+            --forest-green: #2d5a27;
+            --cream-paper: #fdfbf7;
+            --accent-gold: #c5a059;
+            --card-bg: #233621;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--deep-forest);
+            color: var(--cream-paper);
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 3vw 5vw;
+            box-sizing: border-box;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--forest-green);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        h1 { margin: 0; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: var(--accent-gold); }
+
+        .btn-back {
+            background: var(--forest-green);
+            color: white;
+            padding: 10px 25px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 700;
+        }
+
+        /* FORMULARIO DE AÑADIR */
+        .add-item-card {
+            background: var(--dark-wood);
+            padding: 30px;
+            border-radius: 25px;
+            margin-bottom: 40px;
+            border: 1px solid var(--forest-green);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr auto;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        .input-group label { font-size: 0.8rem; font-weight: 700; color: var(--accent-gold); }
+
+        input[type="text"], input[type="number"], select {
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            font-family: inherit;
+            background: var(--cream-paper);
+            color: var(--dark-wood);
+        }
+
+        .btn-add {
+            background: var(--accent-gold);
+            color: var(--dark-wood);
+            border: none;
+            padding: 12px 25px;
+            border-radius: 12px;
+            font-weight: 900;
+            cursor: pointer;
+            height: 48px;
+        }
+
+        /* TABLA DE PRODUCTOS */
+        .shopping-table {
+            width: 100%;
+            background: var(--card-bg);
+            border-radius: 25px;
+            overflow: hidden;
+            border-collapse: collapse;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .shopping-table th {
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+            text-align: left;
+            color: var(--accent-gold);
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+
+        .shopping-table td {
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            vertical-align: middle;
+        }
+
+        /* ESTILO PARA PRODUCTOS COMPRADOS (TACHADOS) */
+        .item-row { transition: all 0.3s ease; }
+        .item-row.comprado {
+            opacity: 0.5;
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+        .item-row.comprado .product-name {
+            text-decoration: line-through;
+            color: #aaa;
+        }
+
+        /* Checkbox personalizado */
+        .check-comprado {
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            accent-color: var(--accent-gold);
+        }
+
+        .item-img-preview {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            background-color: rgba(0,0,0,0.5);
+            object-fit: contain;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            border: 1px solid #444;
+        }
+
+        .delete-btn { 
+            color: #ff5e5e; 
+            cursor: pointer; 
+            font-weight: bold; 
+            background: rgba(255,0,0,0.1);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,0,0,0.3);
+        }
+
+        /* RESUMEN FINAL */
+        .summary-bar {
+            margin-top: 40px;
+            background: var(--dark-wood);
+            padding: 30px;
+            border-radius: 25px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            text-align: center;
+            border: 2px solid var(--accent-gold);
+        }
+
+        .summary-item span { display: block; opacity: 0.7; font-size: 0.9rem; }
+        .summary-item b { font-size: 2rem; color: var(--accent-gold); }
+
+        @media (max-width: 900px) {
+            .form-grid { grid-template-columns: 1fr 1fr; }
+            .summary-bar { grid-template-columns: 1fr; gap: 20px; }
+            .shopping-table { display: block; overflow-x: auto; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🛒 Lista de la Compra</h1>
+        <a href="index.html" class="btn-back">⬅ Dashboard</a>
+    </header>
+
+    <div class="add-item-card">
+        <div class="form-grid">
+            <div class="input-group">
+                <label>¿Qué compramos?</label>
+                <input type="text" id="i-name" placeholder="Ej: Carne para barbacoa">
+            </div>
+            <div class="input-group">
+                <label>Precio Estimado (€)</label>
+                <input type="number" id="i-price" step="0.01" placeholder="0.00">
+            </div>
+            <div class="input-group">
+                <label>Responsable de comprar:</label>
+                <select id="i-payer">
+                    <option value="Fondo Común">Fondo Común</option>
+                    </select>
+            </div>
+            <div class="input-group">
+                <label>Foto producto (opcional)</label>
+                <input type="file" id="i-file" accept="image/*" style="font-size: 0.7rem; background: none; color: white;">
+            </div>
+            <button class="btn-add" onclick="procesarItem()">AÑADIR</button>
+        </div>
+    </div>
+
+    <table class="shopping-table">
+        <thead>
+            <tr>
+                <th>Cesta</th>
+                <th>Foto</th>
+                <th>Producto</th>
+                <th>Precio</th>
+                <th>Responsable</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody id="shopping-body">
+            </tbody>
+    </table>
+
+    <div class="summary-bar">
+        <div class="summary-item">
+            <span>COSTE TOTAL COMPRA</span>
+            <b id="total-sum">0.00€</b>
+        </div>
+        <div class="summary-item" style="border-left: 1px solid #444; border-right: 1px solid #444;">
+            <span>ASISTENTES</span>
+            <b id="total-people">0</b>
+        </div>
+        <div class="summary-item">
+            <span>TOCAMOS A</span>
+            <b id="per-person">0.00€</b>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Nuestra "base de datos" local
+    let compra = [];
+    let participantes = [];
+
+    // Al cargar la página...
+    document.addEventListener("DOMContentLoaded", () => {
+        // 1. Cargar participantes para el desplegable
+        const pGuardados = localStorage.getItem('miembrosViajeRural');
+        if(pGuardados) {
+            participantes = JSON.parse(pGuardados);
+            const selector = document.getElementById('i-payer');
+            participantes.forEach(p => {
+                let opt = document.createElement('option');
+                opt.value = p; opt.innerText = p;
+                selector.appendChild(opt);
+            });
+            document.getElementById('total-people').innerText = participantes.length || 1;
+        }
+
+        // 2. Cargar lista de la compra guardada
+        const cGuardada = localStorage.getItem('listaCompraRural');
+        if(cGuardada) {
+            compra = JSON.parse(cGuardada);
+        }
+        renderizarCompra();
+    });
+
+    // Función principal para leer los inputs y añadir el producto
+    function procesarItem() {
+        const nombre = document.getElementById('i-name').value;
+        const precio = parseFloat(document.getElementById('i-price').value) || 0;
+        const pagador = document.getElementById('i-payer').value;
+        const archivo = document.getElementById('i-file').files[0];
+
+        if (!nombre || precio <= 0) {
+            alert("Por favor, pon un nombre y un precio mayor que 0.");
+            return;
+        }
+
+        if (archivo) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                agregarALista(nombre, precio, pagador, e.target.result);
+            };
+            reader.readAsDataURL(archivo);
+        } else {
+            // Si no suben foto, pasamos null
+            agregarALista(nombre, precio, pagador, null);
+        }
+    }
+
+    // Añade el objeto al Array y guarda
+    function agregarALista(nombre, precio, pagador, imgData) {
+        const nuevoProducto = {
+            id: Date.now(),
+            nombre: nombre,
+            precio: precio,
+            pagador: pagador,
+            img: imgData,
+            comprado: false // ¡NUEVO! Por defecto no está comprado
+        };
+        
+        compra.push(nuevoProducto);
+        guardarYRenderizar();
+        
+        // Limpiar los campos para poder escribir el siguiente
+        document.getElementById('i-name').value = '';
+        document.getElementById('i-price').value = '';
+        document.getElementById('i-file').value = '';
+    }
+
+    // NUEVO: Función para marcar/desmarcar como comprado
+    function toggleComprado(id) {
+        // Buscamos el producto en el array
+        const producto = compra.find(item => item.id === id);
+        if (producto) {
+            // Invertimos su estado (si era false pasa a true, y viceversa)
+            producto.comprado = !producto.comprado;
+            guardarYRenderizar();
+        }
+    }
+
+    // Función para borrar un producto del array
+    function eliminarItem(id) {
+        if(confirm("¿Seguro que quieres borrar este producto de la lista?")) {
+            compra = compra.filter(item => item.id !== id);
+            guardarYRenderizar();
+        }
+    }
+
+    // Guarda el array en localStorage y actualiza el HTML
+    function guardarYRenderizar() {
+        localStorage.setItem('listaCompraRural', JSON.stringify(compra));
+        renderizarCompra();
+    }
+
+    // Genera el código HTML de la tabla leyendo el array
+    function renderizarCompra() {
+        const tbody = document.getElementById('shopping-body');
+        tbody.innerHTML = '';
+        let totalPrecio = 0;
+
+        compra.forEach(item => {
+            totalPrecio += item.precio; // Sumamos al total acumulado
+            
+            // Si hay imagen la ponemos, si no, un icono de carrito
+            const imgHTML = item.img 
+                ? `<div class="item-img-preview" style="background-image: url('${item.img}')"></div>` 
+                : `<div class="item-img-preview" style="display:flex; align-items:center; justify-content:center; color:#888;">🛒</div>`;
+
+            // Verificamos si está comprado para aplicarle la clase CSS especial
+            const claseComprado = item.comprado ? 'comprado' : '';
+            const atributoChecked = item.comprado ? 'checked' : '';
+
+            // Dibujamos la fila de la tabla
+            tbody.innerHTML += `
+                <tr class="item-row ${claseComprado}">
+                    <td>
+                        <input type="checkbox" class="check-comprado" onchange="toggleComprado(${item.id})" ${atributoChecked}>
+                    </td>
+                    <td>${imgHTML}</td>
+                    <td class="product-name" style="font-weight:bold; font-size:1.1rem;">${item.nombre}</td>
+                    <td style="color:var(--accent-gold); font-weight:900; font-size:1.2rem;">${item.precio.toFixed(2)}€</td>
+                    <td><small style="background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 10px;">👤 ${item.pagador}</small></td>
+                    <td><span class="delete-btn" onclick="eliminarItem(${item.id})">🗑️ Borrar</span></td>
+                </tr>
+            `;
+        });
+
+        // Actualizar la barra inferior de cálculos
+        const numPersonas = participantes.length || 1;
+        document.getElementById('total-sum').innerText = totalPrecio.toFixed(2) + "€";
+        document.getElementById('per-person').innerText = (totalPrecio / numPersonas).toFixed(2) + "€";
+    }
+</script>
+
+</body>
+</html>
