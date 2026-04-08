@@ -1,10 +1,20 @@
 <?php
-// Candado de seguridad: si no hay sesión, al login
 session_start();
+require_once 'inc/bd.php';
+
 if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
     exit();
 }
+
+// Guardar configuración
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $stmt = $pdo->prepare("INSERT INTO transporte (id_config, tipo, coste_total) VALUES (1, ?, ?) ON DUPLICATE KEY UPDATE tipo = VALUES(tipo), coste_total = VALUES(coste_total)");
+    $stmt->execute([$_POST['tipo'], $_POST['total']]);
+}
+
+// Leer configuración actual
+$config = $pdo->query("SELECT * FROM transporte WHERE id_config = 1")->fetch();
 ?>
 <!DOCTYPE html>
 <html lang="es">

@@ -1,13 +1,65 @@
 <?php
-// Arrancamos la sesión
 session_start();
+require_once 'inc/bd.php'; // Conexión centralizada
 
-// Si no hay un usuario logueado, lo expulsamos al login
+// Bloqueo de seguridad
 if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
     exit();
 }
+
+// --- LÓGICA DE ACCIONES (POST/GET) ---
+
+// 1. Añadir nuevo producto
+if (isset($_POST['btn-add'])) {
+    $nombre = trim($_POST['i-name']);
+    $precio = floatval($_POST['i-price']);
+    $id_pagador = ($_POST['i-payer'] == "0") ? null : $_POST['i-payer'];
+
+    if (!empty($nombre) && $precio > 0) {
+        $stmt = $pdo->prepare("INSERT INTO lista_compra (nombre, precio_estimado, id_pagador) VALUES (?, ?, ?)");
+        $stmt->execute([$nombre, $precio, $id_pagador]);
+        header("Location: compra.php");
+        exit();
+    }
+}
+
+// 2. Marcar/Desmarcar como comprado
+if (isset($_GET['toggle'])) {
+    $id = intval($_GET['toggle']);
+    $stmt = $pdo->prepare("UPDATE lista_compra SET comprado = NOT comprado WHERE id_item = ?");
+    $stmt->execute([$id]);
+    header("Location: compra.php");
+    exit();
+}
+
+// 3. Eliminar producto
+if (isset($_GET['delete'])) {
+    $id = intval($_GET['delete']);
+    $stmt = $pdo->prepare("DELETE FROM lista_compra WHERE id_item = ?");
+    $stmt->execute([$id]);
+    header("Location: compra.php");
+    exit();
+}
+
+// --- CONSULTAS PARA LA VISTA ---
+
+// Obtener todos los productos (unimos con usuarios para saber el nombre del responsable)
+$items = $pdo->query("
+    SELECT l.*, u.nombre as responsable 
+    FROM lista_compra l 
+    LEFT JOIN usuarios u ON l.id_pagador = u.id_usuario 
+    ORDER BY l.id_item DESC
+")->fetchAll();
+
+// Obtener lista de usuarios para el desplegable de responsables
+$usuarios = $pdo->query("SELECT id_usuario, nombre FROM usuarios ORDER BY nombre ASC")->fetchAll();
+
+// Cálculos del resumen
+$total_compra = $pdo->query("SELECT SUM(precio_estimado) FROM lista_compra")->fetchColumn() ?: 0;
+$num_amigos = $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn() ?: 1;
 ?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -29,164 +81,78 @@ if (!isset($_SESSION['user_id'])) {
             font-family: 'Nunito', sans-serif;
             background-color: var(--deep-forest);
             color: var(--cream-paper);
-            margin: 0;
-            padding: 0;
-            width: 100vw;
-            min-height: 100vh;
+            margin: 0; padding: 0; min-height: 100vh;
         }
 
-        .container {
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 3vw 5vw;
-            box-sizing: border-box;
-        }
+        .container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 3vw 5vw; box-sizing: border-box; }
 
         header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid var(--forest-green);
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid var(--forest-green); padding-bottom: 20px; margin-bottom: 30px;
         }
 
         h1 { margin: 0; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: var(--accent-gold); }
 
         .btn-back {
-            background: var(--forest-green);
-            color: white;
-            padding: 10px 25px;
-            text-decoration: none;
-            border-radius: 50px;
-            font-weight: 700;
+            background: var(--forest-green); color: white; padding: 10px 25px;
+            text-decoration: none; border-radius: 50px; font-weight: 700;
         }
 
-        /* FORMULARIO DE AÑADIR */
         .add-item-card {
-            background: var(--dark-wood);
-            padding: 30px;
-            border-radius: 25px;
-            margin-bottom: 40px;
-            border: 1px solid var(--forest-green);
+            background: var(--dark-wood); padding: 30px; border-radius: 25px;
+            margin-bottom: 40px; border: 1px solid var(--forest-green);
         }
 
         .form-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr 1fr auto;
-            gap: 15px;
-            align-items: flex-end;
+            display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 15px; align-items: flex-end;
         }
 
         .input-group { display: flex; flex-direction: column; gap: 5px; }
         .input-group label { font-size: 0.8rem; font-weight: 700; color: var(--accent-gold); }
 
-        input[type="text"], input[type="number"], select {
-            padding: 12px;
-            border-radius: 12px;
-            border: none;
-            font-family: inherit;
-            background: var(--cream-paper);
-            color: var(--dark-wood);
+        input, select {
+            padding: 12px; border-radius: 12px; border: none; font-family: inherit;
+            background: var(--cream-paper); color: var(--dark-wood);
         }
 
         .btn-add {
-            background: var(--accent-gold);
-            color: var(--dark-wood);
-            border: none;
-            padding: 12px 25px;
-            border-radius: 12px;
-            font-weight: 900;
-            cursor: pointer;
-            height: 48px;
+            background: var(--accent-gold); color: var(--dark-wood); border: none;
+            padding: 12px 25px; border-radius: 12px; font-weight: 900; cursor: pointer;
         }
 
-        /* TABLA DE PRODUCTOS */
         .shopping-table {
-            width: 100%;
-            background: var(--card-bg);
-            border-radius: 25px;
-            overflow: hidden;
-            border-collapse: collapse;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            width: 100%; background: var(--card-bg); border-radius: 25px;
+            overflow: hidden; border-collapse: collapse; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
         .shopping-table th {
-            background: rgba(0,0,0,0.3);
-            padding: 20px;
-            text-align: left;
-            color: var(--accent-gold);
-            text-transform: uppercase;
-            font-size: 0.9rem;
+            background: rgba(0,0,0,0.3); padding: 20px; text-align: left;
+            color: var(--accent-gold); text-transform: uppercase; font-size: 0.9rem;
         }
 
-        .shopping-table td {
-            padding: 15px 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            vertical-align: middle;
-        }
+        .shopping-table td { padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
 
-        /* ESTILO PARA PRODUCTOS COMPRADOS (TACHADOS) */
-        .item-row { transition: all 0.3s ease; }
-        .item-row.comprado {
-            opacity: 0.5;
-            background-color: rgba(0, 0, 0, 0.2);
-        }
-        .item-row.comprado .product-name {
-            text-decoration: line-through;
-            color: #aaa;
-        }
+        .item-row.comprado { opacity: 0.5; background-color: rgba(0, 0, 0, 0.2); }
+        .item-row.comprado .product-name { text-decoration: line-through; color: #aaa; }
 
-        /* Checkbox personalizado */
-        .check-comprado {
-            width: 25px;
-            height: 25px;
-            cursor: pointer;
-            accent-color: var(--accent-gold);
-        }
-
-        .item-img-preview {
-            width: 50px;
-            height: 50px;
-            border-radius: 8px;
-            background-color: rgba(0,0,0,0.5);
-            object-fit: contain;
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            border: 1px solid #444;
-        }
+        .check-comprado { width: 25px; height: 25px; cursor: pointer; accent-color: var(--accent-gold); }
 
         .delete-btn { 
-            color: #ff5e5e; 
-            cursor: pointer; 
-            font-weight: bold; 
-            background: rgba(255,0,0,0.1);
-            padding: 8px 12px;
-            border-radius: 8px;
-            border: 1px solid rgba(255,0,0,0.3);
+            color: #ff5e5e; text-decoration: none; font-weight: bold; background: rgba(255,0,0,0.1);
+            padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,0,0,0.3);
         }
 
-        /* RESUMEN FINAL */
         .summary-bar {
-            margin-top: 40px;
-            background: var(--dark-wood);
-            padding: 30px;
-            border-radius: 25px;
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            text-align: center;
-            border: 2px solid var(--accent-gold);
+            margin-top: 40px; background: var(--dark-wood); padding: 30px; border-radius: 25px;
+            display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: center; border: 2px solid var(--accent-gold);
         }
 
         .summary-item span { display: block; opacity: 0.7; font-size: 0.9rem; }
         .summary-item b { font-size: 2rem; color: var(--accent-gold); }
 
         @media (max-width: 900px) {
-            .form-grid { grid-template-columns: 1fr 1fr; }
+            .form-grid { grid-template-columns: 1fr; }
             .summary-bar { grid-template-columns: 1fr; gap: 20px; }
-            .shopping-table { display: block; overflow-x: auto; }
         }
     </style>
 </head>
@@ -195,200 +161,86 @@ if (!isset($_SESSION['user_id'])) {
 <div class="container">
     <header>
         <h1>🛒 Lista de la Compra</h1>
-        <a href="index.html" class="btn-back">⬅ Dashboard</a>
+        <a href="exito.php" class="btn-back">⬅ Dashboard</a>
     </header>
 
     <div class="add-item-card">
-        <div class="form-grid">
+        <form action="compra.php" method="POST" class="form-grid">
             <div class="input-group">
                 <label>¿Qué compramos?</label>
-                <input type="text" id="i-name" placeholder="Ej: Carne para barbacoa">
+                <input type="text" name="i-name" placeholder="Ej: Carne para barbacoa" required>
             </div>
             <div class="input-group">
                 <label>Precio Estimado (€)</label>
-                <input type="number" id="i-price" step="0.01" placeholder="0.00">
+                <input type="number" name="i-price" step="0.01" placeholder="0.00" required>
             </div>
             <div class="input-group">
-                <label>Responsable de comprar:</label>
-                <select id="i-payer">
-                    <option value="Fondo Común">Fondo Común</option>
-                    </select>
+                <label>Responsable:</label>
+                <select name="i-payer">
+                    <option value="0">Fondo Común</option>
+                    <?php foreach ($usuarios as $u): ?>
+                        <option value="<?= $u['id_usuario'] ?>"><?= htmlspecialchars($u['nombre']) ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
-            <div class="input-group">
-                <label>Foto producto (opcional)</label>
-                <input type="file" id="i-file" accept="image/*" style="font-size: 0.7rem; background: none; color: white;">
-            </div>
-            <button class="btn-add" onclick="procesarItem()">AÑADIR</button>
-        </div>
+            <button type="submit" name="btn-add" class="btn-add">AÑADIR</button>
+        </form>
     </div>
 
     <table class="shopping-table">
         <thead>
             <tr>
                 <th>Cesta</th>
-                <th>Foto</th>
                 <th>Producto</th>
                 <th>Precio</th>
                 <th>Responsable</th>
                 <th>Acción</th>
             </tr>
         </thead>
-        <tbody id="shopping-body">
-            </tbody>
+        <tbody>
+            <?php foreach ($items as $item): ?>
+                <tr class="item-row <?= $item['comprado'] ? 'comprado' : '' ?>">
+                    <td>
+                        <input type="checkbox" class="check-comprado" 
+                               onclick="window.location.href='compra.php?toggle=<?= $item['id_item'] ?>'"
+                               <?= $item['comprado'] ? 'checked' : '' ?>>
+                    </td>
+                    <td class="product-name" style="font-weight:bold; font-size:1.1rem;">
+                        <?= htmlspecialchars($item['nombre']) ?>
+                    </td>
+                    <td style="color:var(--accent-gold); font-weight:900; font-size:1.2rem;">
+                        <?= number_format($item['precio_estimado'], 2) ?>€
+                    </td>
+                    <td>
+                        <small style="background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 10px;">
+                            👤 <?= htmlspecialchars($item['responsable'] ?? 'Fondo Común') ?>
+                        </small>
+                    </td>
+                    <td>
+                        <a href="compra.php?delete=<?= $item['id_item'] ?>" 
+                           class="delete-btn" 
+                           onclick="return confirm('¿Borrar este producto?')">🗑️ Borrar</a>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
     </table>
 
     <div class="summary-bar">
         <div class="summary-item">
             <span>COSTE TOTAL COMPRA</span>
-            <b id="total-sum">0.00€</b>
+            <b><?= number_format($total_compra, 2) ?>€</b>
         </div>
         <div class="summary-item" style="border-left: 1px solid #444; border-right: 1px solid #444;">
             <span>ASISTENTES</span>
-            <b id="total-people">0</b>
+            <b><?= $num_amigos ?></b>
         </div>
         <div class="summary-item">
             <span>TOCAMOS A</span>
-            <b id="per-person">0.00€</b>
+            <b><?= number_format($total_compra / $num_amigos, 2) ?>€</b>
         </div>
     </div>
 </div>
-
-<script>
-    // Nuestra "base de datos" local
-    let compra = [];
-    let participantes = [];
-
-    // Al cargar la página...
-    document.addEventListener("DOMContentLoaded", () => {
-        // 1. Cargar participantes para el desplegable
-        const pGuardados = localStorage.getItem('miembrosViajeRural');
-        if(pGuardados) {
-            participantes = JSON.parse(pGuardados);
-            const selector = document.getElementById('i-payer');
-            participantes.forEach(p => {
-                let opt = document.createElement('option');
-                opt.value = p; opt.innerText = p;
-                selector.appendChild(opt);
-            });
-            document.getElementById('total-people').innerText = participantes.length || 1;
-        }
-
-        // 2. Cargar lista de la compra guardada
-        const cGuardada = localStorage.getItem('listaCompraRural');
-        if(cGuardada) {
-            compra = JSON.parse(cGuardada);
-        }
-        renderizarCompra();
-    });
-
-    // Función principal para leer los inputs y añadir el producto
-    function procesarItem() {
-        const nombre = document.getElementById('i-name').value;
-        const precio = parseFloat(document.getElementById('i-price').value) || 0;
-        const pagador = document.getElementById('i-payer').value;
-        const archivo = document.getElementById('i-file').files[0];
-
-        if (!nombre || precio <= 0) {
-            alert("Por favor, pon un nombre y un precio mayor que 0.");
-            return;
-        }
-
-        if (archivo) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                agregarALista(nombre, precio, pagador, e.target.result);
-            };
-            reader.readAsDataURL(archivo);
-        } else {
-            // Si no suben foto, pasamos null
-            agregarALista(nombre, precio, pagador, null);
-        }
-    }
-
-    // Añade el objeto al Array y guarda
-    function agregarALista(nombre, precio, pagador, imgData) {
-        const nuevoProducto = {
-            id: Date.now(),
-            nombre: nombre,
-            precio: precio,
-            pagador: pagador,
-            img: imgData,
-            comprado: false // ¡NUEVO! Por defecto no está comprado
-        };
-        
-        compra.push(nuevoProducto);
-        guardarYRenderizar();
-        
-        // Limpiar los campos para poder escribir el siguiente
-        document.getElementById('i-name').value = '';
-        document.getElementById('i-price').value = '';
-        document.getElementById('i-file').value = '';
-    }
-
-    // NUEVO: Función para marcar/desmarcar como comprado
-    function toggleComprado(id) {
-        // Buscamos el producto en el array
-        const producto = compra.find(item => item.id === id);
-        if (producto) {
-            // Invertimos su estado (si era false pasa a true, y viceversa)
-            producto.comprado = !producto.comprado;
-            guardarYRenderizar();
-        }
-    }
-
-    // Función para borrar un producto del array
-    function eliminarItem(id) {
-        if(confirm("¿Seguro que quieres borrar este producto de la lista?")) {
-            compra = compra.filter(item => item.id !== id);
-            guardarYRenderizar();
-        }
-    }
-
-    // Guarda el array en localStorage y actualiza el HTML
-    function guardarYRenderizar() {
-        localStorage.setItem('listaCompraRural', JSON.stringify(compra));
-        renderizarCompra();
-    }
-
-    // Genera el código HTML de la tabla leyendo el array
-    function renderizarCompra() {
-        const tbody = document.getElementById('shopping-body');
-        tbody.innerHTML = '';
-        let totalPrecio = 0;
-
-        compra.forEach(item => {
-            totalPrecio += item.precio; // Sumamos al total acumulado
-            
-            // Si hay imagen la ponemos, si no, un icono de carrito
-            const imgHTML = item.img 
-                ? `<div class="item-img-preview" style="background-image: url('${item.img}')"></div>` 
-                : `<div class="item-img-preview" style="display:flex; align-items:center; justify-content:center; color:#888;">🛒</div>`;
-
-            // Verificamos si está comprado para aplicarle la clase CSS especial
-            const claseComprado = item.comprado ? 'comprado' : '';
-            const atributoChecked = item.comprado ? 'checked' : '';
-
-            // Dibujamos la fila de la tabla
-            tbody.innerHTML += `
-                <tr class="item-row ${claseComprado}">
-                    <td>
-                        <input type="checkbox" class="check-comprado" onchange="toggleComprado(${item.id})" ${atributoChecked}>
-                    </td>
-                    <td>${imgHTML}</td>
-                    <td class="product-name" style="font-weight:bold; font-size:1.1rem;">${item.nombre}</td>
-                    <td style="color:var(--accent-gold); font-weight:900; font-size:1.2rem;">${item.precio.toFixed(2)}€</td>
-                    <td><small style="background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 10px;">👤 ${item.pagador}</small></td>
-                    <td><span class="delete-btn" onclick="eliminarItem(${item.id})">🗑️ Borrar</span></td>
-                </tr>
-            `;
-        });
-
-        // Actualizar la barra inferior de cálculos
-        const numPersonas = participantes.length || 1;
-        document.getElementById('total-sum').innerText = totalPrecio.toFixed(2) + "€";
-        document.getElementById('per-person').innerText = (totalPrecio / numPersonas).toFixed(2) + "€";
-    }
-</script>
 
 </body>
 </html>

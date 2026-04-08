@@ -1,12 +1,20 @@
 <?php
-// Arrancamos la sesión
 session_start();
+require_once 'inc/bd.php';
 
-// Si no hay un usuario logueado, lo expulsamos al login
 if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
     exit();
 }
+
+// Obtener actividades con recuento de "Me apunto"
+$actividades = $pdo->query("
+    SELECT a.*, COUNT(v.id_usuario) as apuntados,
+    (SELECT COUNT(*) FROM votos_actividades WHERE id_usuario = {$_SESSION['user_id']} AND id_actividad = a.id_actividad) as apuntado_yo
+    FROM actividades a
+    LEFT JOIN votos_actividades v ON a.id_actividad = v.id_actividad
+    GROUP BY a.id_actividad
+")->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -261,7 +269,7 @@ if (!isset($_SESSION['user_id'])) {
 <div class="container">
     <header>
         <h1>🏄‍♂️ Planes y Reservas</h1>
-        <a href="index.html" class="btn-back">⬅ Dashboard</a>
+        <a href="exito.php" class="btn-back">⬅ Dashboard</a>
     </header>
 
     <div class="user-bar">

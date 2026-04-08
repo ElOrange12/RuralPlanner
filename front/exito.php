@@ -1,10 +1,30 @@
 <?php
-// ¡El candado de seguridad! Si no hay sesión iniciada, lo echamos al login.
-session_start();
-if (!isset($_SESSION['user_id'])) {
-    header("Location: index.php");
-    exit();
-}
+	session_start();
+	require_once 'inc/bd.php';
+	if (!isset($_SESSION['user_id'])) { header("Location: index.php"); exit(); }
+
+	$id_user = $_SESSION['user_id'];
+
+	// 1. Obtener la casa más votada (la que se muestra en el dashboard)
+	$casa = $pdo->query("SELECT c.*, COUNT(v.id_casa) as votos FROM casas c LEFT JOIN votos_casas v ON c.id_casa = v.id_casa GROUP BY c.id_casa ORDER BY votos DESC LIMIT 1")->fetch();
+	$gasto_casa = $casa['precio'] ?? 0;
+
+	// 2. Suma de la lista de la compra total
+	$gasto_compra = $pdo->query("SELECT SUM(precio_estimado) FROM lista_compra")->fetchColumn() ?: 0;
+
+	// 3. Gasto de transporte (configuración única)
+	$gasto_transporte = $pdo->query("SELECT coste_total FROM transporte WHERE id_config = 1")->fetchColumn() ?: 0;
+
+	// 4. Gasto personal de actividades (solo a las que te has apuntado)
+	$stmt_act = $pdo->prepare("SELECT SUM(a.precio) FROM actividades a JOIN votos_actividades v ON a.id_actividad = v.id_actividad WHERE v.id_usuario = ?");
+	$stmt_act->execute([$id_user]);
+	$gasto_actividades = $stmt_act->fetchColumn() ?: 0;
+
+	$total_general = $gasto_casa + $gasto_compra + $gasto_transporte + $gasto_actividades;
+	$num_amigos = $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn() ?: 1;
+
+	// 5. Lista de nombres de amigos para la card
+	$amigos = $pdo->query("SELECT nombre FROM usuarios")->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -321,111 +341,6 @@ if (!isset($_SESSION['user_id'])) {
         </div>
     </div>
 </div>
-
-<script>
-    let miembros = [];
-
-    document.addEventListener("DOMContentLoaded", () => {
-        cargarMiembros();
-        calcularPresupuestoTotal();
-    });
-
-    function cargarMiembros() {
-        const guardado = localStorage.getItem('miembrosViajeRural');
-        if (guardado) {
-            miembros = JSON.parse(guardado);
-        }
-        renderizarLista();
-    }
-
-    function guardarMiembros() {
-        localStorage.setItem('miembrosViajeRural', JSON.stringify(miembros));
-    }
-
-    function renderizarLista() {
-        const list = document.getElementById('list-members');
-        list.innerHTML = ''; 
-        
-        miembros.forEach((nombre, index) => {
-            const li = document.createElement('li');
-            li.innerHTML = `
-                <span>${nombre}</span> 
-                <span style="cursor:pointer; color:#e74c3c; font-weight:bold;" onclick="eliminarMiembro(${index})">×</span>
-            `;
-            list.appendChild(li);
-        });
-
-        document.getElementById('count-members').innerText = miembros.length;
-        calcularPresupuestoTotal();
-    }
-
-    function addMember() {
-        const input = document.getElementById('nameInput');
-        const nombre = input.value.trim();
-        
-        if (nombre !== "") {
-            miembros.push(nombre); 
-            guardarMiembros();     
-            renderizarLista();     
-            input.value = "";      
-        }
-    }
-
-    function eliminarMiembro(index) {
-        miembros.splice(index, 1); 
-        guardarMiembros();         
-        renderizarLista();         
-    }
-
-    function handleKeyPress(event) {
-        if (event.key === 'Enter') {
-            addMember();
-        }
-    }
-
-    function calcularPresupuestoTotal() {
-        let totalAcumulado = 0;
-        const numeroAmigos = miembros.length > 0 ? miembros.length : 1; 
-
-        const casasGuardadas = localStorage.getItem('casasViajeRural');
-        if (casasGuardadas) {
-            const casas = JSON.parse(casasGuardadas);
-            if (casas.length > 0) {
-                totalAcumulado += parseFloat(casas[0].precio) || 0;
-                
-                document.getElementById('main-house-img').style.backgroundImage = `url('${casas[0].img}')`;
-                document.getElementById('main-house-title').innerText = "🏆 " + casas[0].nombre;
-            }
-        }
-
-        const transporteGuardado = localStorage.getItem('transporteRural');
-        if (transporteGuardado) {
-            const transporte = JSON.parse(transporteGuardado);
-            totalAcumulado += parseFloat(transporte.total) || 0;
-        }
-
-        const compraGuardada = localStorage.getItem('listaCompraRural');
-        if (compraGuardada) {
-            const compra = JSON.parse(compraGuardada);
-            compra.forEach(item => {
-                totalAcumulado += parseFloat(item.precio) || 0;
-            });
-        }
-
-        const actividadesGuardadas = localStorage.getItem('actividadesRural');
-        if (actividadesGuardadas) {
-            const actividades = JSON.parse(actividadesGuardadas);
-            actividades.forEach(plan => {
-                totalAcumulado += parseFloat(plan.precio) || 0;
-            });
-        }
-
-        document.getElementById('total-price').innerText = totalAcumulado.toFixed(2) + "€";
-        
-        const precioPorPersona = totalAcumulado / numeroAmigos;
-        document.getElementById('per-person').innerText = precioPorPersona.toFixed(2) + "€";
-    }
-</script>
 
 </body>
 </html>
