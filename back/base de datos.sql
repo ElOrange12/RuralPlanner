@@ -138,3 +138,10 @@ CREATE TABLE transporte (
     ruta VARCHAR(255) NOT NULL,
     coste_total DECIMAL(10, 2) NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS votos_fechas (
+    id_usuario INT,
+    fecha DATE,
+    PRIMARY KEY (id_usuario, fecha),
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE
+);
