@@ -147,3 +147,8 @@ CREATE TABLE IF NOT EXISTS votos_fechas (
 );
 
 ALTER TABLE lista_compra ADD COLUMN pagador_manual VARCHAR(100);
+
+CREATE TABLE asistentes (
+    id_asistente INT AUTO_INCREMENT PRIMARY KEY,
+	nombre VARCHAR(100) NOT NULL
+);
