@@ -207,67 +207,42 @@ $casas = $pdo->query("
         .form-grid input::placeholder { color: rgba(255,255,255,0.5); }
         .form-grid input:focus { background: rgba(255,255,255,0.1); border-color: var(--accent-gold); outline: none; box-shadow: 0 0 15px rgba(197, 160, 89, 0.2); }
         
-       /* 1. Caja contenedora (Sincronizada con los otros inputs) */
-        .file-upload-wrapper { 
-            background: rgba(255, 255, 255, 0.05); 
-            border-radius: 15px; 
-            display: flex; 
-            align-items: center; 
-            padding: 0 10px; 
-            border: 2px solid rgba(255, 255, 255, 0.1); 
-            transition: 0.3s;
-            height: 54px; /* Altura fija para que mida igual que los demás inputs */
-            box-sizing: border-box;
-            overflow: hidden; /* Evita que el botón se salga */
+		/* =========================================
+           NUEVO BOTÓN DE SUBIDA DE FOTOS
+           ========================================= */
+        .custom-file-upload {
+            grid-column: 1 / -1; /* Ocupa todo el ancho disponible */
+        }
+        
+        .custom-file-upload input[type="file"] {
+            display: none; /* Ocultamos el botón feo por defecto */
+        }
+        
+        .custom-file-upload label {
+            display: flex; justify-content: center; align-items: center;
+            padding: 15px; width: 100%; box-sizing: border-box;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed rgba(255, 255, 255, 0.4);
+            border-radius: 15px; color: rgba(255, 255, 255, 0.8);
+            font-family: inherit; font-size: 1rem; font-weight: bold;
+            cursor: pointer; transition: all 0.3s ease;
         }
 
-        .file-upload-wrapper:hover { 
-            border-color: var(--accent-gold); 
+        .custom-file-upload label:hover {
             background: rgba(255, 255, 255, 0.1);
-        }
-
-        /* 2. El input real (invisible pero clickeable) */
-        .file-upload-wrapper input[type="file"] { 
-            background: transparent; 
-            width: 100%; 
-            color: rgba(255, 255, 255, 0.6); 
-            border: none; 
-            cursor: pointer;
-            font-size: 0.85rem; /* Texto de 'Ningún archivo' más pequeño */
-        }
-
-        /* 3. 🔥 EL BOTÓN "HACKEADO" (Más pequeño y estético) */
-        .file-upload-wrapper input[type="file"]::file-selector-button {
-            background: linear-gradient(145deg, var(--wood-light), var(--wood-brown));
+            border-color: var(--accent-gold);
             color: white;
-            border: none;
-            padding: 8px 12px; /* Más compacto para que no choque arriba/abajo */
-            border-radius: 10px;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-size: 0.75rem; /* Texto pequeño para que no se vea 'raro' */
-            cursor: pointer;
-            margin-right: 10px;
-            box-shadow: 0 3px 0 #2a1f12; /* Sombra 3D más sutil */
-            transition: all 0.2s ease;
-            font-family: 'Nunito', sans-serif;
         }
-        
-        /* Efecto Hover: Dorado */
-        .file-upload-wrapper input[type="file"]::file-selector-button:hover {
-            background: linear-gradient(145deg, var(--accent-light), var(--accent-gold));
-            color: var(--wood-brown);
-            box-shadow: 0 2px 0 #9c7b41;
-            transform: translateY(1px);
+
+        /* Clase que se activa con JS cuando la foto ya está cargada */
+        .custom-file-upload label.uploaded {
+            background: rgba(45, 90, 39, 0.5); /* Fondo verde bosque */
+            border-color: #4acead; /* Borde verde brillante */
+            border-style: solid;
+            color: white;
+            box-shadow: 0 0 15px rgba(74, 206, 173, 0.3);
         }
-        
-        /* Efecto Click: Se hunde */
-        .file-upload-wrapper input[type="file"]::file-selector-button:active {
-            transform: translateY(3px);
-            box-shadow: 0 0 0 transparent;
-        }
-        
+                
         /* 🔥 EL BOTÓN ALARGADO Y CENTRADO 🔥 */
         .btn-add { 
             background: linear-gradient(145deg, var(--accent-light), var(--accent-gold)); 
@@ -489,13 +464,13 @@ $casas = $pdo->query("
 
             <input type="text" id="h-name" name="nombre" placeholder="Nombre (ej: Villa Bosque)" required>
             <input type="number" id="h-price" name="precio" placeholder="Precio Total de la casa (€)" required step="0.01">
-            
-            <div class="file-upload-wrapper">
-                <input type="file" id="h-file" accept="image/*" onchange="convertirImagen()">
-            </div>
-
             <input type="text" id="h-url" name="url_web" placeholder="Link web (Opcional)">
             
+            <div class="custom-file-upload">
+                <label for="h-file" id="label-foto-casa">📸 Subir foto de la casa...</label>
+                <input type="file" id="h-file" accept="image/*" onchange="convertirImagen(this, 'label-foto-casa')">
+            </div>
+
             <button type="button" class="btn-add" onclick="enviarFormulario()">Añadir a la lista</button>
         </form>
     </div>
@@ -503,19 +478,30 @@ $casas = $pdo->query("
 
 <script>
     // 1. Convertir foto elegida a texto Base64
-    function convertirImagen() {
-        const archivo = document.getElementById('h-file').files[0];
-        if (archivo) {
+    // 1. Convertir foto elegida a texto Base64 y dar feedback visual
+    function convertirImagen(input, labelId) {
+        const label = document.getElementById(labelId);
+        
+        if (input.files && input.files[0]) {
             const reader = new FileReader();
             reader.onload = function(e) {
-                // Guardamos el chorro de texto en el input oculto
                 document.getElementById('foto_base64').value = e.target.result;
+                
+                // Feedback visual de éxito
+                label.classList.add('uploaded');
+                // Recortamos el nombre del archivo si es muy largo
+                let nombreArchivo = input.files[0].name;
+                if(nombreArchivo.length > 20) nombreArchivo = nombreArchivo.substring(0, 17) + '...';
+                label.innerHTML = `✅ ¡Foto lista! (${nombreArchivo})`;
             };
-            reader.readAsDataURL(archivo);
+            reader.readAsDataURL(input.files[0]);
         } else {
+            // Si el usuario cancela, reseteamos
             document.getElementById('foto_base64').value = '';
+            label.classList.remove('uploaded');
+            label.innerHTML = `📸 Subir foto de la casa...`;
         }
-    }
+    }	
 
     // 2. Enviar a PHP
     function enviarFormulario() {

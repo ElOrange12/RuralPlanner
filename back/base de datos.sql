@@ -145,3 +145,5 @@ CREATE TABLE IF NOT EXISTS votos_fechas (
     PRIMARY KEY (id_usuario, fecha),
     FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE
 );
+
+ALTER TABLE lista_compra ADD COLUMN pagador_manual VARCHAR(100);

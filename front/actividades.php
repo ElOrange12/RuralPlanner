@@ -102,8 +102,41 @@ $presupuesto_personal = $pdo->query("
         .btn-add { background: var(--purple-main); color: white; border: none; padding: 15px; border-radius: 12px; font-weight: 900; font-size: 1.1rem; cursor: pointer; transition: 0.3s; grid-column: 1 / -1; text-transform: uppercase; font-family: 'Nunito', sans-serif; }
         .btn-add:hover { background: var(--purple-light); }
 
-        .file-upload-wrapper { background: rgba(255,255,255,0.9); border-radius: 12px; display: flex; align-items: center; padding: 0 10px; }
-        .file-upload-wrapper input[type="file"] { background: transparent; padding: 10px 5px; width: 100%; color: var(--dark-wood); font-family: 'Nunito', sans-serif; }
+        /* =========================================
+           NUEVO BOTÓN DE SUBIDA DE FOTOS
+           ========================================= */
+        .custom-file-upload {
+            grid-column: 1 / -1; /* Ocupa todo el ancho disponible */
+        }
+        
+        .custom-file-upload input[type="file"] {
+            display: none; /* Ocultamos el botón feo por defecto */
+        }
+        
+        .custom-file-upload label {
+            display: flex; justify-content: center; align-items: center;
+            padding: 15px; width: 100%; box-sizing: border-box;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed rgba(255, 255, 255, 0.4);
+            border-radius: 15px; color: rgba(255, 255, 255, 0.8);
+            font-family: inherit; font-size: 1rem; font-weight: bold;
+            cursor: pointer; transition: all 0.3s ease;
+        }
+
+        .custom-file-upload label:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--accent-gold);
+            color: white;
+        }
+
+        /* Clase que se activa con JS cuando la foto ya está cargada */
+        .custom-file-upload label.uploaded {
+            background: rgba(45, 90, 39, 0.5); /* Fondo verde bosque */
+            border-color: #4acead; /* Borde verde brillante */
+            border-style: solid;
+            color: white;
+            box-shadow: 0 0 15px rgba(74, 206, 173, 0.3);
+        }
 
         .summary-bar { margin: 30px 0; background: rgba(0,0,0,0.4); padding: 20px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid var(--accent-gold); }
         .summary-price { font-size: 2.5rem; color: var(--accent-gold); font-weight: 900; }
@@ -319,8 +352,9 @@ $presupuesto_personal = $pdo->query("
             <input type="text" name="descripcion" placeholder="Detalles / Descripción">
             <input type="text" name="url_web" placeholder="Enlace web (opcional)">
             
-            <div class="file-upload-wrapper">
-                <input type="file" accept="image/*" onchange="convertirImagen(this)">
+            <div class="custom-file-upload">
+                <label for="p-file" id="label-foto-actividad">📸 Subir foto del plan...</label>
+                <input type="file" id="p-file" accept="image/*" onchange="convertirImagen(this, 'label-foto-actividad')">
             </div>
             <button type="submit" class="btn-add">Publicar Plan</button>
         </form>
@@ -328,11 +362,28 @@ $presupuesto_personal = $pdo->query("
 </div>
 
 <script>
-    function convertirImagen(input) {
+    // 1. Convertir foto elegida a texto Base64 y dar feedback visual
+    function convertirImagen(input, labelId) {
+        const label = document.getElementById(labelId);
+        
         if (input.files && input.files[0]) {
             const reader = new FileReader();
-            reader.onload = (e) => document.getElementById('foto_base64').value = e.target.result;
+            reader.onload = function(e) {
+                document.getElementById('foto_base64').value = e.target.result;
+                
+                // Feedback visual de éxito
+                label.classList.add('uploaded');
+                // Recortamos el nombre del archivo si es muy largo
+                let nombreArchivo = input.files[0].name;
+                if(nombreArchivo.length > 20) nombreArchivo = nombreArchivo.substring(0, 17) + '...';
+                label.innerHTML = `✅ ¡Foto lista! (${nombreArchivo})`;
+            };
             reader.readAsDataURL(input.files[0]);
+        } else {
+            // Si el usuario cancela, reseteamos
+            document.getElementById('foto_base64').value = '';
+            label.classList.remove('uploaded');
+            label.innerHTML = `📸 Subir foto de la casa...`;
         }
     }
 </script>
