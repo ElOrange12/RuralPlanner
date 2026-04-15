@@ -104,7 +104,9 @@ try {
         .card .btn-primary { background: linear-gradient(145deg, var(--forest-light), var(--forest-green)); color: white; }
         .card .btn-secondary { background: linear-gradient(145deg, var(--accent-light), var(--accent-gold)); color: var(--wood-brown); }
         .date-rank-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; margin-bottom: 8px; border-radius: 10px; background: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.8); font-size: 1.1rem; }
-
+		
+		.btn-danger { background: red; color: white; }
+		
         @media (max-width: 800px) { .top-section { grid-template-columns: 1fr; } .nav-buttons { grid-template-columns: 1fr 1fr; gap: 15px; } .budget-grid { flex-direction: column; gap: 20px; } .budget-grid > div:nth-child(2) { border-left: none; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; } .btn-nav { font-size: 1rem; padding: 15px; } .btn-logout { position: static; display: block; width: fit-content; margin: 10px auto 0; transform: none; } }
     </style>
 </head>
@@ -208,6 +210,21 @@ try {
         <div class="row">
             <button class="btn-secondary" id="exportPdfCompactBtn">Compacto</button>
             <button class="btn-secondary" id="exportPdfDetailedBtn">Detallado</button>
+        </div>
+    </article>
+    
+    <article class="card">
+        <h3>Reset rápido</h3>
+        <p class="muted">Empezar de cero para otro viaje (borra casas, compras, planes y asistentes).</p>
+        <div class="row">
+            <?php if ($es_admin): ?>
+                <form action="controladores/admin_procesar.php" method="POST" style="width: 100%; margin: 0;" onsubmit="return confirm('⚠️ ¡PELIGRO! ¿Seguro que quieres borrar ABSOLUTAMENTE TODO el plan? Esto vaciará las votaciones, la compra y el presupuesto de la base de datos. No se puede deshacer.');">
+                    <input type="hidden" name="accion" value="reset_plan">
+                    <button type="submit" class="btn-danger" style="width: 100%;">Borrar todo</button>
+                </form>
+            <?php else: ?>
+                <button class="btn-danger" style="width: 100%; opacity: 0.5; cursor: not-allowed;" title="Solo el admin puede resetear el plan" disabled>Borrar todo</button>
+            <?php endif; ?>
         </div>
     </article>
 </section>

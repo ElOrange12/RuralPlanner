@@ -152,3 +152,7 @@ CREATE TABLE asistentes (
     id_asistente INT AUTO_INCREMENT PRIMARY KEY,
 	nombre VARCHAR(100) NOT NULL
 );
+
+ALTER TABLE casas MODIFY url_web TEXT;
+
+ALTER TABLE casas ADD COLUMN descripcion TEXT;
