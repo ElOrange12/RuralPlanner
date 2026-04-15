@@ -153,6 +153,6 @@ CREATE TABLE asistentes (
 	nombre VARCHAR(100) NOT NULL
 );
 
-ALTER TABLE casas MODIFY url_web TEXT;
+ALTER TABLE casas MODIFY url_web LONGTEXT;
 
 ALTER TABLE casas ADD COLUMN descripcion TEXT;
