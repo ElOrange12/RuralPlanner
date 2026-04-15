@@ -45,11 +45,17 @@ try {
     // 5. Fechas más votadas
     $fechas_top = $pdo->query("SELECT fecha, COUNT(id_usuario) as total_votos FROM votos_fechas GROUP BY fecha ORDER BY total_votos DESC, fecha ASC LIMIT 3")->fetchAll();
 
+    // --- NUEVO: 6. Extraer detalles completos para el PDF Detallado ---
+    $lista_compra_pdf = $pdo->query("SELECT nombre, precio_estimado FROM lista_compra")->fetchAll(PDO::FETCH_ASSOC);
+    $actividades_pdf = $pdo->query("SELECT nombre, precio FROM actividades")->fetchAll(PDO::FETCH_ASSOC);
+    $transporte_pdf = $pdo->query("SELECT tipo, ruta, coste_total FROM transporte")->fetchAll(PDO::FETCH_ASSOC);
+
 } catch (PDOException $e) {
     $total_final_bd = 0; $precio_por_persona = 0;
     $img_casa = 'https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&w=800&q=80';
     $nombre_casa = 'Error al cargar';
     $fechas_top = []; $asistentes = [];
+    $lista_compra_pdf = []; $actividades_pdf = []; $transporte_pdf = [];
 }
 ?>
 <!DOCTYPE html>
@@ -206,7 +212,7 @@ try {
 
     <article class="card">
         <h3>Informe del plan</h3>
-        <p class="muted">Genera un informe para compartir.</p>
+        <p class="muted">Genera un PDF para compartir por WhatsApp.</p>
         <div class="row">
             <button class="btn-secondary" id="exportPdfCompactBtn">Compacto</button>
             <button class="btn-secondary" id="exportPdfDetailedBtn">Detallado</button>
@@ -215,10 +221,10 @@ try {
     
     <article class="card">
         <h3>Reset rápido</h3>
-        <p class="muted">Empezar de cero para otro viaje (borra casas, compras, planes y asistentes).</p>
+        <p class="muted">Empezar de cero para otro viaje (borra todo el plan).</p>
         <div class="row">
             <?php if ($es_admin): ?>
-                <form action="controladores/admin_procesar.php" method="POST" style="width: 100%; margin: 0;" onsubmit="return confirm('⚠️ ¡PELIGRO! ¿Seguro que quieres borrar ABSOLUTAMENTE TODO el plan? Esto vaciará las votaciones, la compra y el presupuesto de la base de datos. No se puede deshacer.');">
+                <form action="controladores/admin_procesar.php" method="POST" style="width: 100%; margin: 0;" onsubmit="return confirm('⚠️ ¡PELIGRO! ¿Seguro que quieres borrar ABSOLUTAMENTE TODO el plan? Esto vaciará las votaciones, la compra y el presupuesto. No se puede deshacer.');">
                     <input type="hidden" name="accion" value="reset_plan">
                     <button type="submit" class="btn-danger" style="width: 100%;">Borrar todo</button>
                 </form>
@@ -230,7 +236,7 @@ try {
 </section>
 
 <script>
-    // Variables para el PDF
+    // Variables Generales del PHP para usar en JS
     const arrayMiembros = <?= json_encode(array_column($asistentes, 'nombre')) ?>;
     const datosPDF = {
         casaNombre: <?= json_encode($nombre_casa) ?>,
@@ -239,6 +245,14 @@ try {
         compra: <?= (float)$precio_compra ?>,
         actividades: <?= (float)$precio_actividades ?>,
         totalFinal: <?= (float)$total_final_bd ?>
+    };
+
+    // Arrays de Detalles para el Modo Detallado
+    const detallesPDF = {
+        compra: <?= json_encode($lista_compra_pdf ?? []) ?>,
+        actividades: <?= json_encode($actividades_pdf ?? []) ?>,
+        transporte: <?= json_encode($transporte_pdf ?? []) ?>,
+        fechas: <?= json_encode($fechas_top ?? []) ?>
     };
 
     // Retos aleatorios
@@ -257,52 +271,152 @@ try {
     function exportPlanToPdf(mode) {
         const numAmigos = arrayMiembros.length > 0 ? arrayMiembros.length : 1;
         const tocamosA = (datosPDF.totalFinal / numAmigos).toFixed(2);
-        const fecha = new Date().toLocaleDateString("es-ES");
+        const fechaObj = new Date();
+        const fechaStr = fechaObj.toLocaleDateString("es-ES") + " a las " + fechaObj.toLocaleTimeString("es-ES", {hour: '2-digit', minute:'2-digit'});
         
+        let contentHtml = '';
+
+        if (mode === 'compact') {
+            contentHtml = `
+                <div class="summary">
+                    <div class="box"><h2>👥 Asistentes (${numAmigos})</h2><p>${arrayMiembros.length > 0 ? arrayMiembros.join(', ') : 'Nadie apuntado'}</p></div>
+                    <div class="box" style="text-align: center;"><h2>💰 A Escote</h2><div class="big-price">${tocamosA}€ / p.</div></div>
+                </div>
+                <div class="box" style="margin-top: 20px;">
+                    <h2>📊 Resumen de Gastos</h2>
+                    <table>
+                        <tr><th>Concepto</th><th style="text-align:right;">Importe</th></tr>
+                        <tr><td>🏠 Alojamiento: <b>${datosPDF.casaNombre}</b></td><td style="text-align:right;">${datosPDF.precioCasa.toFixed(2)}€</td></tr>
+                        <tr><td>🚗 Transporte (Global)</td><td style="text-align:right;">${datosPDF.transporte.toFixed(2)}€</td></tr>
+                        <tr><td>🛒 Fondo de Comida</td><td style="text-align:right;">${datosPDF.compra.toFixed(2)}€</td></tr>
+                        <tr><td>🏹 Actividades</td><td style="text-align:right;">${datosPDF.actividades.toFixed(2)}€</td></tr>
+                        <tr class="total-row"><td>PRESUPUESTO TOTAL:</td><td style="text-align:right;">${datosPDF.totalFinal.toFixed(2)}€</td></tr>
+                    </table>
+                </div>
+            `;
+        } else if (mode === 'detailed') {
+            // Construir filas de desglose
+            let transportRows = detallesPDF.transporte.map(t => `<tr><td>${t.tipo === 'coche' ? '🚗' : (t.tipo === 'tren' ? '🚆' : '✈️')} ${t.ruta}</td><td style="text-align:right;">${parseFloat(t.coste_total).toFixed(2)}€</td></tr>`).join('');
+            if(!transportRows) transportRows = '<tr><td colspan="2" style="font-style:italic; color:#999;">Sin transporte registrado</td></tr>';
+
+            let compraRows = detallesPDF.compra.map(c => `<tr><td>🛒 ${c.nombre}</td><td style="text-align:right;">${parseFloat(c.precio_estimado).toFixed(2)}€</td></tr>`).join('');
+            if(!compraRows) compraRows = '<tr><td colspan="2" style="font-style:italic; color:#999;">Lista de la compra vacía</td></tr>';
+
+            let actRows = detallesPDF.actividades.map(a => `<tr><td>🏹 ${a.nombre}</td><td style="text-align:right;">${parseFloat(a.precio).toFixed(2)}€</td></tr>`).join('');
+            if(!actRows) actRows = '<tr><td colspan="2" style="font-style:italic; color:#999;">Sin planes propuestos</td></tr>';
+
+            let fechasRows = detallesPDF.fechas.map(f => {
+                let parts = f.fecha.split('-');
+                return `<li>🗓️ <b>${parts[2]}/${parts[1]}/${parts[0]}</b> (${f.total_votos} votos)</li>`;
+            }).join('');
+
+            contentHtml = `
+                <div class="summary">
+                    <div class="box"><h2>👥 Asistentes (${numAmigos})</h2><p>${arrayMiembros.length > 0 ? arrayMiembros.join(', ') : 'Nadie apuntado'}</p></div>
+                    <div class="box" style="text-align: center;"><h2>💰 A Escote</h2><div class="big-price">${tocamosA}€ / p.</div></div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                    <div class="box">
+                        <h2>🗓️ Fechas Favoritas</h2>
+                        <ul>${fechasRows || '<li>Ninguna fecha votada</li>'}</ul>
+                    </div>
+                    <div class="box">
+                        <h2>🏠 Alojamiento</h2>
+                        <table>
+                            <tr><td>${datosPDF.casaNombre}</td><td style="text-align:right; font-weight:bold;">${datosPDF.precioCasa.toFixed(2)}€</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="box" style="margin-top: 20px;">
+                    <h2>🚗 Transporte Desglosado</h2>
+                    <table>
+                        <tr><th>Trayecto</th><th style="text-align:right;">Coste</th></tr>
+                        ${transportRows}
+                        <tr class="total-row"><td>Total Transporte:</td><td style="text-align:right;">${datosPDF.transporte.toFixed(2)}€</td></tr>
+                    </table>
+                </div>
+
+                <div class="box" style="margin-top: 20px;">
+                    <h2>🛒 Compra Desglosada</h2>
+                    <table>
+                        <tr><th>Producto</th><th style="text-align:right;">Precio</th></tr>
+                        ${compraRows}
+                        <tr class="total-row"><td>Total Compras:</td><td style="text-align:right;">${datosPDF.compra.toFixed(2)}€</td></tr>
+                    </table>
+                </div>
+
+                <div class="box" style="margin-top: 20px;">
+                    <h2>🏹 Actividades Extra</h2>
+                    <table>
+                        <tr><th>Actividad</th><th style="text-align:right;">Precio</th></tr>
+                        ${actRows}
+                        <tr class="total-row"><td>Total Actividades:</td><td style="text-align:right;">${datosPDF.actividades.toFixed(2)}€</td></tr>
+                    </table>
+                </div>
+
+                <div class="box" style="margin-top: 20px; background: #e8f5e9; border-color: #2d5a27;">
+                    <h2 style="color: #2d5a27; text-align: center; font-size: 24px; border:none;">PRESUPUESTO GENERAL: ${datosPDF.totalFinal.toFixed(2)}€</h2>
+                </div>
+            `;
+        }
+
         const html = `
         <!DOCTYPE html>
         <html lang="es">
         <head>
             <meta charset="UTF-8">
-            <title>Informe Plan Rural</title>
+            <title>Informe_Rural_${mode}.pdf</title>
             <style>
-                body { font-family: Arial, sans-serif; color: #1a1a1a; padding: 20px; }
-                .cover { background: #2d5a27; color: white; padding: 30px; border-radius: 15px; text-align: center; }
-                .summary { margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-                .box { border: 2px solid #f4f0e6; padding: 20px; border-radius: 12px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                th, td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; }
-                .total-row { font-weight: bold; font-size: 18px; background: #fdfbf7; }
-                .big-price { font-size: 24px; color: #c5a059; font-weight: bold; }
+                body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1a1a1a; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.5; }
+                .cover { background: #2d5a27; color: white; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 25px; }
+                .cover h1 { margin: 0 0 10px 0; font-size: 26px; text-transform: uppercase; letter-spacing: 2px;}
+                .cover p { margin: 0; opacity: 0.8; font-size: 14px; }
+                .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+                .box { border: 2px solid #eaeaea; padding: 20px; border-radius: 10px; break-inside: avoid; }
+                h2 { color: #2c1e14; margin-top: 0; font-size: 16px; border-bottom: 2px solid #f4f0e6; padding-bottom: 8px; text-transform: uppercase; }
+                table { width: 100%; border-collapse: collapse; font-size: 14px; }
+                th, td { border-bottom: 1px solid #f0f0f0; padding: 10px 5px; text-align: left; }
+                th { color: #888; font-size: 11px; letter-spacing: 1px; }
+                .total-row { font-weight: bold; background: #fdfbf7; }
+                .total-row td { border-top: 2px solid #2d5a27; color: #2d5a27; }
+                .big-price { font-size: 30px; color: #c5a059; font-weight: bold; margin-top: 10px; }
+                ul { list-style: none; padding: 0; margin: 0; font-size: 14px; }
+                li { padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+                li:last-child { border: none; }
+                @media print {
+                    body { padding: 0; }
+                    .box { box-shadow: none; border: 1px solid #ddd; }
+                    .cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #2d5a27 !important; }
+                    .total-row { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #fdfbf7 !important; }
+                }
             </style>
         </head>
         <body>
-            <div class="cover"><h1>🌲 Informe Plan Rural</h1><p>Generado el ${fecha}</p></div>
-            <div class="summary">
-                <div class="box"><h2>👥 Asistentes</h2><p>${arrayMiembros.length > 0 ? arrayMiembros.join(', ') : 'Vacío'}</p></div>
-                <div class="box" style="text-align: center;"><h2>💰 A Escote</h2><div class="big-price">${tocamosA}€ / p.</div></div>
+            <div class="cover">
+                <h1>🌲 Plan Rural 🌲</h1>
+                <p>Generado el ${fechaStr} | Tipo de Informe: ${mode === 'compact' ? 'Resumen Ejecutivo' : 'Desglose Completo'}</p>
             </div>
-            <div class="box" style="margin-top: 20px;">
-                <h2>📊 Desglose</h2>
-                <table>
-                    <tr><th>Concepto</th><th>Importe Total</th></tr>
-                    <tr><td>🏠 Casa: <b>${datosPDF.casaNombre}</b></td><td>${datosPDF.precioCasa.toFixed(2)}€</td></tr>
-                    <tr><td>🚗 Transporte</td><td>${datosPDF.transporte.toFixed(2)}€</td></tr>
-                    <tr><td>🛒 Fondo de Comida</td><td>${datosPDF.compra.toFixed(2)}€</td></tr>
-                    <tr><td>🏹 Actividades</td><td>${datosPDF.actividades.toFixed(2)}€</td></tr>
-                    <tr class="total-row"><td style="text-align: right;">PRESUPUESTO GLOBAL:</td><td>${datosPDF.totalFinal.toFixed(2)}€</td></tr>
-                </table>
-            </div>
+            ${contentHtml}
         </body>
         </html>`;
         
+        // Creamos un iframe invisible para meter el HTML e imprimirlo sin alterar la vista actual
         const frame = document.createElement("iframe");
         frame.style.display = "none";
         document.body.appendChild(frame);
         frame.contentWindow.document.open();
         frame.contentWindow.document.write(html);
         frame.contentWindow.document.close();
-        setTimeout(() => { frame.contentWindow.focus(); frame.contentWindow.print(); setTimeout(() => frame.remove(), 1500); }, 700);
+        
+        // Esperamos un momento a que el navegador procese el CSS dentro del iframe
+        setTimeout(() => { 
+            frame.contentWindow.focus(); 
+            frame.contentWindow.print(); 
+            // Eliminamos el iframe para no ensuciar el DOM
+            setTimeout(() => frame.remove(), 1500); 
+        }, 800);
     }
 
     document.getElementById("exportPdfCompactBtn").addEventListener("click", () => exportPlanToPdf("compact"));
