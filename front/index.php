@@ -2,7 +2,7 @@
 // Arrancamos la sesión. Si el usuario ya está logueado, lo mandamos al feed principal.
 session_start();
 if (isset($_SESSION['user_id'])) {
-    header("Location: exito.php"); // Recuerda cambiar esto por el nombre real de tu página principal
+    header("Location: salas.php"); // Recuerda cambiar esto por el nombre real de tu página principal
     exit();
 }
 ?>

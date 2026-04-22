@@ -2,37 +2,65 @@
 // admin.php
 session_start();
 
-// 1. Candado de seguridad DOBLE (Solo Admins)
+// 1. Candado de seguridad (Admin + Sala seleccionada)
 if (!isset($_SESSION['user_id']) || $_SESSION['rol'] !== 'admin') {
-    header("Location: exito.php");
+    header("Location: index.php");
+    exit();
+}
+
+if (!isset($_SESSION['sala_id'])) {
+    header("Location: salas.php");
     exit();
 }
 
 require_once 'inc/bd.php';
 $user_id = $_SESSION['user_id'];
+$sala_id = $_SESSION['sala_id'];
 
 try {
-    // 2. Traer estadísticas generales
-    $total_usuarios = $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn();
-    $total_casas = $pdo->query("SELECT COUNT(*) FROM casas")->fetchColumn();
-    $total_actividades = $pdo->query("SELECT COUNT(*) FROM actividades")->fetchColumn();
+    // 2. Traer estadísticas generales FILTRADAS POR SALA
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios_salas WHERE id_sala = ?");
+    $stmt->execute([$sala_id]);
+    $total_usuarios = $stmt->fetchColumn();
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM casas WHERE id_sala = ?");
+    $stmt->execute([$sala_id]);
+    $total_casas = $stmt->fetchColumn();
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM actividades WHERE id_sala = ?");
+    $stmt->execute([$sala_id]);
+    $total_actividades = $stmt->fetchColumn();
     
-    // 3. Traer las listas de datos (Usamos LEFT JOIN para ver quién propuso cada cosa)
-    $lista_usuarios = $pdo->query("SELECT id_usuario, nombre, fecha_registro, rol FROM usuarios ORDER BY id_usuario DESC")->fetchAll(PDO::FETCH_ASSOC);
+    // 3. Traer las listas de datos (Filtradas por SALA)
+    $stmt = $pdo->prepare("
+        SELECT u.id_usuario, u.nombre, u.fecha_registro, u.rol 
+        FROM usuarios u
+        INNER JOIN usuarios_salas us ON u.id_usuario = us.id_usuario
+        WHERE us.id_sala = ? 
+        ORDER BY u.id_usuario DESC
+    ");
+    $stmt->execute([$sala_id]);
+    $lista_usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    $lista_casas = $pdo->query("
+    $stmt = $pdo->prepare("
         SELECT c.id_casa, c.nombre, c.precio, u.nombre as creador 
         FROM casas c 
         LEFT JOIN usuarios u ON c.id_creador = u.id_usuario 
+        WHERE c.id_sala = ?
         ORDER BY c.id_casa DESC
-    ")->fetchAll(PDO::FETCH_ASSOC);
+    ");
+    $stmt->execute([$sala_id]);
+    $lista_casas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $lista_actividades = $pdo->query("
+    $stmt = $pdo->prepare("
         SELECT a.id_actividad, a.nombre, a.categoria, a.precio, u.nombre as creador 
         FROM actividades a 
         LEFT JOIN usuarios u ON a.id_creador = u.id_usuario 
+        WHERE a.id_sala = ?
         ORDER BY a.id_actividad DESC
-    ")->fetchAll(PDO::FETCH_ASSOC);
+    ");
+    $stmt->execute([$sala_id]);
+    $lista_actividades = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 } catch (PDOException $e) {
     die("Error crítico: " . $e->getMessage());
@@ -117,7 +145,7 @@ try {
 
 <div class="container">
     <header>
-        <h1>⚙️ Sala de Máquinas</h1>
+        <h1>⚙️ Sala de Máquinas: <?= htmlspecialchars($_SESSION['sala_nombre'] ?? 'Viaje') ?></h1>
         <a href="exito.php" class="btn-back">⬅ Volver al Plan</a>
     </header>
 
@@ -128,7 +156,7 @@ try {
     <div class="stats-grid">
         <div class="stat-card">
             <div class="num"><?= $total_usuarios ?></div>
-            <div class="label">Amigos Registrados</div>
+            <div class="label">Amigos en el Viaje</div>
         </div>
         <div class="stat-card">
             <div class="num"><?= $total_casas ?></div>
@@ -140,8 +168,17 @@ try {
         </div>
     </div>
 
+    <div class="admin-section" style="border-left: 8px solid var(--danger-red);">
+        <h2 style="color: var(--danger-red);">🚨 Zona de Peligro (Borrar Viaje)</h2>
+        <p>Al borrar este viaje, se eliminarán permanentemente todas las casas, actividades y compras asociadas a él, y el código de la sala quedará libre para futuros viajes.</p>
+        <form action="controladores/admin_procesar.php" method="POST" style="margin-top: 15px;" onsubmit="return confirm('⚠️ ¿Estás COMPLETAMENTE SEGURO de que quieres borrar toda la sala? Esta acción no se puede deshacer.');">
+            <input type="hidden" name="accion" value="borrar_viaje_total">
+            <button type="submit" class="btn-delete" style="background: var(--danger-red); color: white; padding: 12px 25px; font-size: 1.1rem;">🗑️ Destruir Viaje por Completo</button>
+        </form>
+    </div>
+
     <div class="admin-section">
-        <h2>👥 Control de Usuarios</h2>
+        <h2>👥 Control de Usuarios en la Sala</h2>
         <div style="overflow-x: auto;">
             <table>
                 <tr><th>ID</th><th>Nombre</th><th>Registro</th><th>Rol</th><th>Acción</th></tr>
@@ -155,7 +192,7 @@ try {
                     </td>
                     <td>
                         <?php if($u['id_usuario'] != $user_id): // No te puedes borrar a ti mismo ?>
-                        <form action="controladores/admin_procesar.php" method="POST" style="margin:0;" onsubmit="return confirm('¿Borrar a este usuario y TODOS sus votos/propuestas?');">
+                        <form action="controladores/admin_procesar.php" method="POST" style="margin:0;" onsubmit="return confirm('¿Expulsar a este usuario de la sala actual?');">
                             <input type="hidden" name="accion" value="borrar_usuario">
                             <input type="hidden" name="id" value="<?= $u['id_usuario'] ?>">
                             <button type="submit" class="btn-delete">Expulsar</button>
