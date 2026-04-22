@@ -62,6 +62,7 @@ $casas = $pdo->query("
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="img/Logo RuralPlanner.png">
     <title>Votación de Casas - Rural Planner</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
@@ -142,7 +143,25 @@ $casas = $pdo->query("
             font-weight: 900; cursor: pointer; transition: 0.2s; box-shadow: 0 6px 0 #9c7b41;
         }
 
-        @media (max-width: 800px) { .form-grid { grid-template-columns: 1fr; } }
+        /* --- RESPONSIVE MÓVIL PERFECTO --- */
+        @media (max-width: 800px) {
+            header { flex-direction: column; gap: 15px; text-align: center; }
+            h1 { font-size: 1.6rem; }
+            .btn-back { width: 100%; text-align: center; box-sizing: border-box; }
+            
+            .houses-grid, .plans-grid { grid-template-columns: 1fr; gap: 25px; }
+            .house-img, .plan-img { height: 200px; }
+            
+            /* El formulario pasa a 1 sola columna */
+            .form-grid { grid-template-columns: 1fr !important; gap: 15px; }
+            .form-grid > div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+            .custom-file-upload label { min-height: 60px; }
+            
+            /* Botones de las tarjetas uno encima del otro */
+            .vote-section { flex-direction: column; gap: 10px; }
+            .vote-section form { width: 100%; }
+            .btn-vote, .btn-link { width: 100%; text-align: center; box-sizing: border-box; }
+        }
     </style>
 </head>
 <body>

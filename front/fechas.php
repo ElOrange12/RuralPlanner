@@ -49,6 +49,7 @@ $total_amigos = $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn() ?: 1
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="img/Logo RuralPlanner.png">
     <title>Calendario Estelar - Rural Planner</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     
@@ -201,7 +202,98 @@ $total_amigos = $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn() ?: 1
         .ranking-card h3 { color: var(--accent-gold); border-bottom: 2px dashed rgba(255,255,255,0.1); padding-bottom: 15px; margin-top: 0; }
         .rank-item { background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px; margin-bottom: 15px; }
 
-        @media (max-width: 900px) { .layout-grid { grid-template-columns: 1fr; } }
+        /* =========================================
+           RESPONSIVE MÓVIL PERFECTO - FECHAS.PHP
+           ========================================= */
+        /* =========================================
+           RESPONSIVE MÓVIL TOTAL - FECHAS.PHP
+           ========================================= */
+        /* =========================================
+           RESPONSIVE MÓVIL TOTAL (CORREGIDO) - FECHAS.PHP
+           ========================================= */
+        @media (max-width: 800px) {
+            /* 1. Evitamos cualquier desbordamiento horizontal en toda la página */
+            html, body {
+                max-width: 100vw;
+                overflow-x: hidden;
+            }
+
+            /* 2. Fijamos los márgenes a píxeles seguros */
+            .container {
+                width: 100%;
+                padding: 20px 15px;
+                box-sizing: border-box;
+            }
+
+            /* 3. Cabecera apilada y centrada */
+            header {
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+                border-bottom: none;
+            }
+
+            header h1 {
+                font-size: 1.6rem;
+                order: -1; /* Forzamos que el título vaya arriba del todo */
+                width: 100%;
+            }
+
+            .btn-back {
+                width: 100%;
+                box-sizing: border-box;
+                display: block;
+            }
+
+            /* 4. Destruimos el Grid y usamos Flexbox (más seguro en móvil) */
+            .layout-grid {
+                display: flex;
+                flex-direction: column;
+                gap: 25px;
+                width: 100%;
+            }
+
+            /* 5. Tarjetas al 100% de ancho sin pasarse */
+            .calendar-card, .ranking-card {
+                width: 100%;
+                padding: 20px 15px;
+                box-sizing: border-box;
+                margin: 0;
+            }
+
+            /* 6. Miniaturizamos el calendario para que no rompa el ancho */
+            .calendar-header h2 { font-size: 1.3rem; }
+            .days-grid { gap: 5px; } /* Menos hueco entre los días */
+            .day-name { font-size: 0.85rem; }
+            .day-cell { min-height: 40px; font-size: 1rem; border-radius: 8px; }
+
+            /* 7. Arreglamos el panel de ranking */
+            .rank-item {
+                display: flex;
+                flex-direction: column; /* Ponemos la fecha arriba y los votos abajo */
+                align-items: center;
+                text-align: center;
+                gap: 10px;
+                padding: 15px;
+            }
+            
+            .rank-item span {
+                float: none; /* Esto mataba el diseño antes */
+                width: 100%;
+                box-sizing: border-box;
+                background: rgba(197, 160, 89, 0.2);
+                padding: 8px;
+                border-radius: 8px;
+            }
+
+            .btn-save {
+                padding: 15px;
+                font-size: 1rem;
+                white-space: normal; 
+                line-height: 1.4;
+            }
+        }
     </style>
 </head>
 <body>

@@ -45,6 +45,8 @@ $num_asistentes = $pdo->query("SELECT COUNT(*) FROM asistentes")->fetchColumn() 
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="img/Logo RuralPlanner.png">
     <title>Compra | Rural Planner</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
@@ -72,6 +74,25 @@ $num_asistentes = $pdo->query("SELECT COUNT(*) FROM asistentes")->fetchColumn() 
         
         .btn-delete { background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid #e74c3c; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; }
         .btn-delete:hover { background: #e74c3c; color: white; }
+        
+        /* --- RESPONSIVE MÓVIL PERFECTO --- */
+        @media (max-width: 800px) {
+            header { flex-direction: column; gap: 15px; text-align: center; }
+            h1 { font-size: 1.6rem; }
+            .btn-back { width: 100%; text-align: center; box-sizing: border-box; }
+            
+            /* Formularios apilados */
+            .form-add form, .transport-layout, .input-grid { flex-direction: column; grid-template-columns: 1fr; gap: 15px; }
+            .input-wrapper, .selector-group { width: 100%; }
+            .btn-add, .btn-save { width: 100%; height: auto; padding: 15px; }
+            
+            /* Barra de resumen apilada */
+            .summary-bar, .total-box { grid-template-columns: 1fr; flex-direction: column; gap: 15px; }
+            
+            /* Magia para que las tablas no rompan el móvil */
+            .table-container, .transport-table { display: block; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+            table { min-width: 600px; } /* Fuerza a que aparezca el scroll si es necesario */
+        }
     </style>
 </head>
 <body>

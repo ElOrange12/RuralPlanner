@@ -73,6 +73,7 @@ $presupuesto_personal = $pdo->query("
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="img/Logo RuralPlanner.png">
     <title>Actividades - Rural Planner</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
@@ -272,7 +273,26 @@ $presupuesto_personal = $pdo->query("
                 transform: translateZ(-0.2em);
             }
             }
-
+			
+        /* --- RESPONSIVE MÓVIL PERFECTO --- */
+        @media (max-width: 800px) {
+            header { flex-direction: column; gap: 15px; text-align: center; }
+            h1 { font-size: 1.6rem; }
+            .btn-back { width: 100%; text-align: center; box-sizing: border-box; }
+            
+            .houses-grid, .plans-grid { grid-template-columns: 1fr; gap: 25px; }
+            .house-img, .plan-img { height: 200px; }
+            
+            /* El formulario pasa a 1 sola columna */
+            .form-grid { grid-template-columns: 1fr !important; gap: 15px; }
+            .form-grid > div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+            .custom-file-upload label { min-height: 60px; }
+            
+            /* Botones de las tarjetas uno encima del otro */
+            .vote-section { flex-direction: column; gap: 10px; }
+            .vote-section form { width: 100%; }
+            .btn-vote, .btn-link { width: 100%; text-align: center; box-sizing: border-box; }
+        }
     </style>
 </head>
 <body>
@@ -312,13 +332,20 @@ $presupuesto_personal = $pdo->query("
                     <div class="plan-info">
                         <h3><?= htmlspecialchars($plan['nombre']) ?></h3>
                         <div class="plan-price"><?= $plan['precio'] > 0 ? number_format($plan['precio'], 2) . '€' : '¡Gratis!' ?></div>
-                        <p style="font-size:0.9rem; opacity:0.7; margin-bottom:15px;"><?= htmlspecialchars($plan['descripcion']) ?></p>
-                        <form action="actividades.php" method="POST">
-                            <input type="hidden" name="id_actividad" value="<?= $plan['id_actividad'] ?>">
-                            <button type="submit" name="votar_actividad" class="btn-vote <?= $plan['ha_votado'] ? 'active' : '' ?>">
-                                <?= $plan['ha_votado'] ? 'Confirmado' : 'Me apunto' ?>
-                            </button>
-                        </form>
+                        <p style="font-size:0.9rem; opacity:0.7; margin-bottom:15px; flex-grow: 1;"><?= htmlspecialchars($plan['descripcion']) ?></p>
+                        
+                        <div style="display: flex; gap: 10px; align-items: center; margin-top: auto;">
+                            <form action="actividades.php" method="POST" style="flex: 1; margin: 0;">
+                                <input type="hidden" name="id_actividad" value="<?= $plan['id_actividad'] ?>">
+                                <button type="submit" name="votar_actividad" class="btn-vote <?= $plan['ha_votado'] ? 'active' : '' ?>">
+                                    <?= $plan['ha_votado'] ? 'Confirmado' : 'Me apunto' ?>
+                                </button>
+                            </form>
+                            
+                            <?php if (!empty($plan['url_web']) && $plan['url_web'] !== '#'): ?>
+                                <a href="<?= htmlspecialchars($plan['url_web']) ?>" target="_blank" style="padding: 12px; background: rgba(255,255,255,0.1); border-radius: 15px; color: white; text-decoration: none; display: inline-block; box-sizing: border-box;">🔗</a>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             <?php endforeach; ?>

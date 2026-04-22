@@ -11,6 +11,7 @@ if (isset($_SESSION['user_id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="img/Logo RuralPlanner.png">
     <title>Acceso - Plan Rural</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     
@@ -57,6 +58,20 @@ if (isset($_SESSION['user_id'])) {
         .error-msg { color: red; font-weight: bold; margin-bottom: 15px; }
         .success-msg { color: var(--forest-green); font-weight: bold; margin-bottom: 15px; }
         .toggle-link { display: block; margin-top: 20px; color: var(--forest-green); font-weight: bold; cursor: pointer; text-decoration: underline; }
+        
+        /* =========================================
+           RESPONSIVE MÓVIL PERFECTO - AUTH CARDS
+           ========================================= */
+        @media (max-width: 480px) {
+            .auth-card { 
+                padding: 30px 20px; 
+                border-radius: 15px; 
+                width: 90%; /* <-- ESTA ES LA MAGIA: Deja un 5% de margen a cada lado */
+            }
+            h1 { font-size: 1.6rem; margin-bottom: 20px; }
+            input[type="text"], input[type="password"] { padding: 12px; font-size: 1rem; }
+            .btn-auth { padding: 12px; font-size: 1.1rem; }
+        }
     </style>
 </head>
 <body>

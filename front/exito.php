@@ -22,11 +22,9 @@ if (isset($_POST['accion'])) {
 }
 
 try {
-    // 2. Traer Asistentes de MySQL
     $asistentes = $pdo->query("SELECT * FROM asistentes ORDER BY id_asistente ASC")->fetchAll();
     $num_asistentes = count($asistentes) > 0 ? count($asistentes) : 1;
 
-    // 3. Casa más votada
     $stmt_casa = $pdo->query("SELECT c.*, COUNT(v.id_casa) as votos FROM casas c LEFT JOIN votos_casas v ON c.id_casa = v.id_casa GROUP BY c.id_casa ORDER BY votos DESC LIMIT 1");
     $casa_top = $stmt_casa->fetch();
     
@@ -34,7 +32,6 @@ try {
     $img_casa = ($casa_top && !empty($casa_top['url_imagen'])) ? $casa_top['url_imagen'] : 'https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&w=800&q=80';
     $nombre_casa = $casa_top ? $casa_top['nombre'] : '¿A dónde vamos?';
 
-    // 4. Extraemos gastos
     $precio_transporte = (float)($pdo->query("SELECT SUM(coste_total) FROM transporte")->fetchColumn() ?: 0);
     $precio_compra = (float)($pdo->query("SELECT SUM(precio_estimado) FROM lista_compra")->fetchColumn() ?: 0);
     $precio_actividades = (float)($pdo->query("SELECT SUM(a.precio) FROM actividades a JOIN votos_actividades v ON a.id_actividad = v.id_actividad")->fetchColumn() ?: 0);
@@ -42,10 +39,8 @@ try {
     $total_final_bd = $precio_casa + $precio_transporte + $precio_compra + $precio_actividades;
     $precio_por_persona = $total_final_bd / $num_asistentes;
 
-    // 5. Fechas más votadas
     $fechas_top = $pdo->query("SELECT fecha, COUNT(id_usuario) as total_votos FROM votos_fechas GROUP BY fecha ORDER BY total_votos DESC, fecha ASC LIMIT 3")->fetchAll();
 
-    // --- NUEVO: 6. Extraer detalles completos para el PDF Detallado ---
     $lista_compra_pdf = $pdo->query("SELECT nombre, precio_estimado FROM lista_compra")->fetchAll(PDO::FETCH_ASSOC);
     $actividades_pdf = $pdo->query("SELECT nombre, precio FROM actividades")->fetchAll(PDO::FETCH_ASSOC);
     $transporte_pdf = $pdo->query("SELECT tipo, ruta, coste_total FROM transporte")->fetchAll(PDO::FETCH_ASSOC);
@@ -64,26 +59,110 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Plan Rural Amigos</title>
+    <link rel="icon" type="image/png" href="img/Logo RuralPlanner.png">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root { --forest-green: #2d5a27; --forest-light: #3a7533; --wood-brown: #4b3621; --wood-light: #6e5033; --black-matte: #1a1a1a; --cream-paper: #fdfbf7; --cream-dark: #e8e3d5; --accent-gold: #c5a059; --accent-light: #e6c587; }
         body { font-family: 'Nunito', 'Arial Rounded MT Bold', sans-serif; background: radial-gradient(circle at top right, var(--cream-paper) 0%, var(--cream-dark) 100%); color: var(--black-matte); margin: 0; padding: 0; width: 100vw; min-height: 100vh; overflow-x: hidden; }
         .feed-container { width: 100%; min-height: 100vh; padding: 3vw 5vw; box-sizing: border-box; display: flex; flex-direction: column; }
+        
+        /* =========================================
+           ☕ PANTALLA DE CARGA (LOADER CAFÉ) ☕
+           ========================================= */
+        #page-loader {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: var(--cream-paper);
+            z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+            transition: opacity 0.6s ease, visibility 0.6s ease;
+        }
+
+        .loader {
+            width: 120px; height: 120px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: relative;
+            animation: shake 3s infinite ease-in-out;
+        }
+
+        .cup {
+            position: relative;
+            width: 50px; height: 40px;
+            background-color: var(--wood-brown);
+            border: 2px solid var(--deep-forest, #1a2e18);
+            border-radius: 3px 3px 20px 20px;
+            z-index: 2;
+            animation: cupPulse 2s infinite ease-in-out;
+        }
+
+        .cup-handle {
+            position: absolute; right: -14px; top: 5px;
+            width: 12px; height: 20px;
+            border: 3px solid var(--deep-forest, #1a2e18);
+            border-left: none;
+            border-radius: 0 15px 15px 0;
+        }
+
+        .smoke {
+            position: absolute; bottom: 45px;
+            width: 4px; height: 20px;
+            background: rgba(100, 100, 100, 0.3);
+            border-radius: 5px;
+            animation: smokeRise 2s infinite ease-in-out;
+            opacity: 0;
+        }
+        .smoke.one { left: 12px; animation-delay: 0s; }
+        .smoke.two { left: 24px; animation-delay: 0.4s; }
+        .smoke.three { left: 36px; animation-delay: 0.8s; }
+
+        .load {
+            margin-top: 20px; font-weight: 900;
+            color: var(--wood-brown); letter-spacing: 2px; text-transform: uppercase;
+            font-size: 0.9rem; animation: pulseText 1.5s infinite;
+            text-align: center;
+        }
+
+        @keyframes smokeRise {
+            0% { transform: translateY(0) scale(1); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(-25px) scale(1.5); opacity: 0; filter: blur(2px); }
+        }
+        @keyframes cupPulse {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        @keyframes pulseText {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        @keyframes shake {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(2deg); }
+            75% { transform: rotate(-2deg); }
+        }
+
+        /* DISEÑO DE CABECERA ORIGINAL (Restaurado) */
         h1 { text-align: center; color: var(--forest-green); text-transform: uppercase; letter-spacing: 2px; font-weight: 900; font-size: 2.5rem; border-bottom: 3px solid rgba(75, 54, 33, 0.2); padding-bottom: 15px; margin-top: 0; position: relative; text-shadow: 1px 1px 0px rgba(255,255,255,0.8); }
+        
         .btn-logout { position: absolute; right: 0; top: 50%; transform: translateY(-50%); background: #e74c3c; color: white; padding: 8px 15px; border-radius: 10px; text-decoration: none; font-size: 1rem; font-weight: bold; box-shadow: 0 4px 0 #c0392b; transition: all 0.2s; }
         .btn-logout:hover { background: #c0392b; transform: translateY(-50%) scale(1.05); }
         .btn-logout:active { transform: translateY(calc(-50% + 4px)); box-shadow: 0 0 0 transparent; }
+
+        .btn-admin { position: absolute; left: 0; top: 50%; transform: translateY(-50%); background: var(--accent-gold); color: white; padding: 8px 15px; border-radius: 10px; text-decoration: none; font-size: 1rem; font-weight: bold; box-shadow: 0 4px 0 #9c7b41; transition: all 0.2s; }
+        .btn-admin:hover { transform: translateY(-50%) scale(1.05); }
+        .btn-admin:active { transform: translateY(calc(-50% + 4px)); box-shadow: 0 0 0 transparent; }
         
+        /* RESTO DEL DISEÑO */
         .card, .members-card { background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.4) 100%); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 20px; padding: 30px; box-shadow: 0 20px 40px rgba(45, 90, 39, 0.08), inset 0 2px 0 rgba(255,255,255,0.5); display: flex; flex-direction: column; }
         .ranking-card, .footer-budget { background: linear-gradient(135deg, rgba(26, 26, 26, 0.9) 0%, rgba(75, 54, 33, 0.8) 100%); backdrop-filter: blur(15px); border: 1px solid rgba(197, 160, 89, 0.2); color: white; border-radius: 25px; padding: 40px 30px; text-align: center; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), inset 0 2px 0 rgba(255,255,255,0.05); }
         .footer-budget { margin-top: 80px; margin-bottom: 20px; }
 
         .btn-nav, .btn-choose, .btn-add { border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; text-align: center; text-decoration: none; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 8px 0 #1e3d1a, 0 15px 20px rgba(45, 90, 39, 0.3), inset 0 2px 0 rgba(255,255,255,0.2); }
         .btn-nav, .btn-choose { background: linear-gradient(145deg, var(--forest-light), var(--forest-green)); color: white; padding: 25px; font-size: 1.2rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
-        .btn-nav.alt { background: linear-gradient(145deg, var(--wood-light), var(--wood-brown)); box-shadow: 0 8px 0 #2a1f12, 0 15px 20px rgba(75, 54, 33, 0.3); }
-        .btn-nav.dark, .btn-add { background: linear-gradient(145deg, #333, var(--black-matte)); box-shadow: 0 8px 0 #000, 0 15px 20px rgba(0, 0, 0, 0.4); color: white; }
-        .btn-nav.fech { background: linear-gradient(145deg, var(--accent-light), var(--accent-gold)); color: var(--wood-brown); box-shadow: 0 8px 0 #9c7b41, 0 15px 20px rgba(197, 160, 89, 0.4); }
-        .btn-nav:active, .btn-choose:active, .btn-add:active { transform: translateY(8px); box-shadow: 0 0 0 transparent; }
+        .btn-nav.alt { background: linear-gradient(145deg, var(--wood-light), var(--wood-brown)); box-shadow: 0 8px 0 #2a1f12, 0 15px 20px rgba(75, 54, 33, 0.3), inset 0 2px 0 rgba(255,255,255,0.1); }
+        .btn-nav.dark, .btn-add { background: linear-gradient(145deg, #333, var(--black-matte)); box-shadow: 0 8px 0 #000, 0 15px 20px rgba(0, 0, 0, 0.4), inset 0 2px 0 rgba(255,255,255,0.1); color: white; }
+        .btn-nav.fech { background: linear-gradient(145deg, var(--accent-light), var(--accent-gold)); color: var(--wood-brown); box-shadow: 0 8px 0 #9c7b41, 0 15px 20px rgba(197, 160, 89, 0.4), inset 0 2px 0 rgba(255,255,255,0.4); text-shadow: 1px 1px 0px rgba(255,255,255,0.4); }
+        .btn-nav:active, .btn-choose:active, .btn-add:active { transform: translateY(8px); box-shadow: 0 0 0 transparent, 0 5px 10px rgba(0, 0, 0, 0.3), inset 0 4px 5px rgba(0,0,0,0.2); }
 
         .top-section { display: grid; grid-template-columns: 2fr 1fr; gap: 40px; margin-top: 20px; flex-grow: 1; }
         .house-selector { position: relative; min-height: 400px; border-radius: 25px; overflow: hidden; border: 6px solid white; background-size: cover; background-position: center; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
@@ -102,7 +181,7 @@ try {
         .budget-grid > div { flex: 1; }
         .price-big { font-size: 4rem; font-weight: 900; background: linear-gradient(to right, var(--accent-light), var(--accent-gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: block; margin-top: 10px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5)); }
 
-        .grid.cols-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 40px auto 60px auto; max-width: 1200px; padding: 0 20px; }
+        .grid.cols-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px; }
         .card h3 { font-size: 1.1rem; color: var(--wood-brown); font-weight: 900; text-transform: uppercase; margin-top: 0; margin-bottom: 10px; }
         .card .muted { font-size: 0.9rem; color: #666666; margin-top: 0; margin-bottom: 20px; flex-grow: 1; }
         .card .row { display: flex; gap: 10px; width: 100%; margin-top: auto; }
@@ -110,19 +189,61 @@ try {
         .card .btn-primary { background: linear-gradient(145deg, var(--forest-light), var(--forest-green)); color: white; }
         .card .btn-secondary { background: linear-gradient(145deg, var(--accent-light), var(--accent-gold)); color: var(--wood-brown); }
         .date-rank-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; margin-bottom: 8px; border-radius: 10px; background: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.8); font-size: 1.1rem; }
-		
-		.btn-danger { background: red; color: white; }
-		
-        @media (max-width: 800px) { .top-section { grid-template-columns: 1fr; } .nav-buttons { grid-template-columns: 1fr 1fr; gap: 15px; } .budget-grid { flex-direction: column; gap: 20px; } .budget-grid > div:nth-child(2) { border-left: none; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; } .btn-nav { font-size: 1rem; padding: 15px; } .btn-logout { position: static; display: block; width: fit-content; margin: 10px auto 0; transform: none; } }
+        .btn-danger { background: #ffffff !important; color: #e74c3c !important; border: 2px solid #e74c3c !important; box-shadow: 0 6px 0 #c0392b !important; }
+        .btn-danger:active { transform: translateY(6px); box-shadow: 0 0 0 transparent !important; }
+        
+		/* =========================================
+           BOTÓN AÑADIR ASISTENTE MÁS GRANDE
+           ========================================= */
+        .members-card .btn-add {
+            padding: 0 30px; /* Lo hace más ancho */
+            font-size: 2rem; /* Hace el símbolo "+" mucho más grande */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px; /* A juego con el input de texto */
+        }
+        
+        /* =========================================
+           MEDIA QUERIES AISLADAS SOLO PARA MÓVIL
+           ========================================= */
+        @media (max-width: 900px) { 
+            /* En móvil modificamos el h1 para que los botones floten arriba y abajo del texto */
+            h1 { display: flex; flex-direction: column; gap: 15px; padding-bottom: 20px; font-size: 1.8rem; border-bottom: none; }
+            h1 span { order: -1; } /* El texto del título sube arriba del todo */
+            .btn-logout, .btn-admin { position: static; transform: none; width: 100%; box-sizing: border-box; text-align: center; }
+            
+            .top-section { grid-template-columns: 1fr; } 
+            .nav-buttons { grid-template-columns: 1fr 1fr; gap: 15px; } 
+            .budget-grid { flex-direction: column; gap: 20px; } 
+            .budget-grid > div:nth-child(2) { border-left: none; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; } 
+            .btn-nav { font-size: 1rem; padding: 15px; } 
+            
+            .grid.cols-3 { grid-template-columns: 1fr; gap: 15px; }
+        }
     </style>
 </head>
 <body>
 
+    <div id="page-loader">
+        <div class="loader">
+            <div class="cup">
+                <div class="cup-handle"></div>
+                <div class="smoke one"></div>
+                <div class="smoke two"></div>
+                <div class="smoke three"></div>
+            </div>
+            <div class="load">Cargando Plan...</div>
+        </div>
+    </div>
+
 <div class="feed-container">
-    <h1>🌲 Plan Rural Amigos 🌲
+    
+    <h1>
         <?php if ($es_admin): ?>
-            <a href="admin.php" style="position:absolute; left:0; top:50%; transform:translateY(-50%); background:var(--accent-gold); color:white; padding:8px 15px; border-radius:10px; text-decoration:none; font-size:1rem;">⚙️ Admin</a>
+            <a href="admin.php" class="btn-admin">⚙️ Admin</a>
         <?php endif; ?>
+        <span>🌲 Plan Rural Amigos 🌲</span>
         <a href="controladores/logout.php" class="btn-logout">Salir</a>
     </h1>
 
@@ -182,61 +303,61 @@ try {
             </div>
         </div>
     </div>
+
+    <section class="grid cols-3">
+        <article class="card">
+            <h3>📅 Fechas Favoritas</h3>
+            <?php if (empty($fechas_top)): ?>
+                <p class="muted">Aún no hay fechas con votos.</p>
+            <?php else: ?>
+                <div style="margin-bottom: 15px; flex-grow: 1;">
+                    <?php foreach($fechas_top as $f): ?>
+                        <div class="date-rank-item">
+                            <strong><?= date('d/m/Y', strtotime($f['fecha'])) ?></strong>
+                            <span style="color:var(--wood-brown); font-weight:900; background:rgba(197, 160, 89, 0.3); padding:2px 8px; border-radius:5px; font-size:0.9rem;"><?= $f['total_votos'] ?> v.</span>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+            <div class="row">
+                <button class="btn-primary" onclick="window.location.href='fechas.php'">Ver calendario</button>
+            </div>
+        </article>
+
+        <article class="card">
+            <h3>Reto aleatorio del finde</h3>
+            <p class="muted" id="challengeText">Pulsa para sacar un mini juego grupal.</p>
+            <div class="row"><button class="btn-primary" id="challengeBtn">Sacar reto</button></div>
+        </article>
+
+        <article class="card">
+            <h3>Informe del plan</h3>
+            <p class="muted">Genera un PDF para compartir por WhatsApp.</p>
+            <div class="row">
+                <button class="btn-secondary" id="exportPdfCompactBtn">Compacto</button>
+                <button class="btn-secondary" id="exportPdfDetailedBtn">Detallado</button>
+            </div>
+        </article>
+        
+        <article class="card" style="grid-column: 1 / -1;">
+            <h3 style="text-align: center; color: #e74c3c;">Reset rápido</h3>
+            <p class="muted" style="text-align: center;">Empezar de cero para otro viaje.</p>
+            <div class="row">
+                <?php if ($es_admin): ?>
+                    <form action="controladores/admin_procesar.php" method="POST" style="width: 100%; margin: 0;" onsubmit="return confirm('⚠️ ¡PELIGRO! ¿Seguro que quieres borrar ABSOLUTAMENTE TODO el plan? Esto vaciará las votaciones, la compra y el presupuesto. No se puede deshacer.');">
+                        <input type="hidden" name="accion" value="reset_plan">
+                        <button type="submit" class="btn-danger" style="width: 100%;">Borrar todo el plan</button>
+                    </form>
+                <?php else: ?>
+                    <button class="btn-danger" style="width: 100%; opacity: 0.5; cursor: not-allowed;" title="Solo el admin puede resetear el plan" disabled>Borrar todo</button>
+                <?php endif; ?>
+            </div>
+        </article>
+    </section>
+
 </div>
 
-<section class="grid cols-3">
-    <article class="card">
-        <h3>📅 Fechas Favoritas</h3>
-        <?php if (empty($fechas_top)): ?>
-            <p class="muted">Aún no hay fechas con votos.</p>
-        <?php else: ?>
-            <div style="margin-bottom: 15px; flex-grow: 1;">
-                <?php foreach($fechas_top as $f): ?>
-                    <div class="date-rank-item">
-                        <strong><?= date('d/m/Y', strtotime($f['fecha'])) ?></strong>
-                        <span style="color:var(--wood-brown); font-weight:900; background:rgba(197, 160, 89, 0.3); padding:2px 8px; border-radius:5px; font-size:0.9rem;"><?= $f['total_votos'] ?> v.</span>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-        <div class="row">
-            <button class="btn-primary" onclick="window.location.href='fechas.php'">Ver calendario</button>
-        </div>
-    </article>
-
-    <article class="card">
-        <h3>Reto aleatorio del finde</h3>
-        <p class="muted" id="challengeText">Pulsa para sacar un mini juego grupal.</p>
-        <div class="row"><button class="btn-primary" id="challengeBtn">Sacar reto</button></div>
-    </article>
-
-    <article class="card">
-        <h3>Informe del plan</h3>
-        <p class="muted">Genera un PDF para compartir por WhatsApp.</p>
-        <div class="row">
-            <button class="btn-secondary" id="exportPdfCompactBtn">Compacto</button>
-            <button class="btn-secondary" id="exportPdfDetailedBtn">Detallado</button>
-        </div>
-    </article>
-    
-    <article class="card">
-        <h3>Reset rápido</h3>
-        <p class="muted">Empezar de cero para otro viaje (borra todo el plan).</p>
-        <div class="row">
-            <?php if ($es_admin): ?>
-                <form action="controladores/admin_procesar.php" method="POST" style="width: 100%; margin: 0;" onsubmit="return confirm('⚠️ ¡PELIGRO! ¿Seguro que quieres borrar ABSOLUTAMENTE TODO el plan? Esto vaciará las votaciones, la compra y el presupuesto. No se puede deshacer.');">
-                    <input type="hidden" name="accion" value="reset_plan">
-                    <button type="submit" class="btn-danger" style="width: 100%;">Borrar todo</button>
-                </form>
-            <?php else: ?>
-                <button class="btn-danger" style="width: 100%; opacity: 0.5; cursor: not-allowed;" title="Solo el admin puede resetear el plan" disabled>Borrar todo</button>
-            <?php endif; ?>
-        </div>
-    </article>
-</section>
-
 <script>
-    // Variables Generales del PHP para usar en JS
     const arrayMiembros = <?= json_encode(array_column($asistentes, 'nombre')) ?>;
     const datosPDF = {
         casaNombre: <?= json_encode($nombre_casa) ?>,
@@ -247,7 +368,6 @@ try {
         totalFinal: <?= (float)$total_final_bd ?>
     };
 
-    // Arrays de Detalles para el Modo Detallado
     const detallesPDF = {
         compra: <?= json_encode($lista_compra_pdf ?? []) ?>,
         actividades: <?= json_encode($actividades_pdf ?? []) ?>,
@@ -255,7 +375,6 @@ try {
         fechas: <?= json_encode($fechas_top ?? []) ?>
     };
 
-    // Retos aleatorios
     const challenges = [
         "Reto fogata: 2 mentiras 1 verdad.",
         "Reto cocina: cena de 3 ingredientes.",
@@ -267,7 +386,6 @@ try {
         document.getElementById("challengeText").textContent = challenges[Math.floor(Math.random() * challenges.length)];
     });
 
-    // Generador de PDF
     function exportPlanToPdf(mode) {
         const numAmigos = arrayMiembros.length > 0 ? arrayMiembros.length : 1;
         const tocamosA = (datosPDF.totalFinal / numAmigos).toFixed(2);
@@ -295,7 +413,6 @@ try {
                 </div>
             `;
         } else if (mode === 'detailed') {
-            // Construir filas de desglose
             let transportRows = detallesPDF.transporte.map(t => `<tr><td>${t.tipo === 'coche' ? '🚗' : (t.tipo === 'tren' ? '🚆' : '✈️')} ${t.ruta}</td><td style="text-align:right;">${parseFloat(t.coste_total).toFixed(2)}€</td></tr>`).join('');
             if(!transportRows) transportRows = '<tr><td colspan="2" style="font-style:italic; color:#999;">Sin transporte registrado</td></tr>';
 
@@ -402,7 +519,6 @@ try {
         </body>
         </html>`;
         
-        // Creamos un iframe invisible para meter el HTML e imprimirlo sin alterar la vista actual
         const frame = document.createElement("iframe");
         frame.style.display = "none";
         document.body.appendChild(frame);
@@ -410,17 +526,24 @@ try {
         frame.contentWindow.document.write(html);
         frame.contentWindow.document.close();
         
-        // Esperamos un momento a que el navegador procese el CSS dentro del iframe
         setTimeout(() => { 
             frame.contentWindow.focus(); 
             frame.contentWindow.print(); 
-            // Eliminamos el iframe para no ensuciar el DOM
             setTimeout(() => frame.remove(), 1500); 
         }, 800);
     }
 
     document.getElementById("exportPdfCompactBtn").addEventListener("click", () => exportPlanToPdf("compact"));
     document.getElementById("exportPdfDetailedBtn").addEventListener("click", () => exportPlanToPdf("detailed"));
+
+    // --- PANTALLA DE CARGA ---
+    window.addEventListener("load", () => {
+        const loader = document.getElementById("page-loader");
+        setTimeout(() => {
+            loader.style.opacity = "0";
+            loader.style.visibility = "hidden";
+        }, 3000); 
+    });
 </script>
 </body>
 </html>

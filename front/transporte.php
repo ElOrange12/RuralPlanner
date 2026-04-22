@@ -40,6 +40,7 @@ $gasto_total_transporte = $pdo->query("SELECT SUM(coste_total) FROM transporte")
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="img/Logo RuralPlanner.png">
     <title>Transporte - Rural Planner</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
@@ -82,11 +83,56 @@ $gasto_total_transporte = $pdo->query("SELECT SUM(coste_total) FROM transporte")
         .transport-table td { padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
         .delete-btn { color: #ff5e5e; cursor: pointer; font-weight: bold; background: rgba(255,0,0,0.1); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,0,0,0.3); border: none; font-size: 1rem;}
 
+        /* --- RESPONSIVE MÓVIL PERFECTO --- */
         @media (max-width: 800px) {
-            .transport-layout { grid-template-columns: 1fr; }
-            .image-panel { min-height: 250px; }
-            .form-panel { padding: 30px; }
-            .transport-table { display: block; overflow-x: auto; }
+            /* 1. Bloqueamos el ancho de la pantalla para evitar desbordes */
+            html, body { max-width: 100vw; overflow-x: hidden; }
+            
+            .container { padding: 20px 15px; width: 100%; box-sizing: border-box; }
+            
+            /* 2. Cabecera apilada y centrada */
+            header { flex-direction: column; gap: 15px; text-align: center; border-bottom: none; }
+            h1 { font-size: 1.6rem; width: 100%; }
+            .btn-back { width: 100%; display: block; box-sizing: border-box; text-align: center; }
+
+            /* 3. Destruimos el Grid y usamos Flexbox para la tarjeta principal */
+            .transport-layout { 
+                display: flex; 
+                flex-direction: column; 
+                width: 100%; 
+                box-sizing: border-box; 
+                margin-bottom: 30px;
+            }
+            
+            .image-panel { min-height: 200px; width: 100%; }
+            
+            .form-panel { 
+                padding: 25px 20px; 
+                width: 100%; 
+                box-sizing: border-box; 
+            }
+            
+            /* 4. Magia para que los inputs ocupen todo el ancho y no se peguen a la izquierda */
+            .input-grid { 
+                display: flex; 
+                flex-direction: column; 
+                gap: 15px; 
+                width: 100%;
+            }
+            
+            .input-group { width: 100%; }
+            
+            .input-group input, select { 
+                width: 100%; 
+                box-sizing: border-box; /* Fundamental para que el relleno (padding) no ensanche el input */
+            }
+
+            /* 5. Cajas de total y botones al 100% */
+            .total-box { flex-direction: column; text-align: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 20px 15px; }
+            .btn-save { width: 100%; box-sizing: border-box; }
+
+            /* 6. Tabla con scroll lateral táctil */
+            .transport-table { display: block; overflow-x: auto; white-space: nowrap; width: 100%; -webkit-overflow-scrolling: touch; }
         }
     </style>
 </head>
