@@ -162,24 +162,16 @@ $gasto_total_transporte = $pdo->query("SELECT SUM(coste_total) FROM transporte")
             <div id="form-coche" class="dynamic-form active">
                 <div class="input-grid">
                     <div class="input-group full-width">
-                        <label>Ruta (Origen - Destino)</label>
-                        <input type="text" id="c-ruta" placeholder="Ej: Madrid - Asturias" oninput="actualizarPantallaTotal()">
+                        <label>Ruta / Descripción</label>
+                        <input type="text" id="c-ruta" placeholder="Ej: Furgoneta de Madrid a la casa" oninput="actualizarPantallaTotal()">
                     </div>
                     <div class="input-group">
-                        <label>Kilómetros (Solo ida)</label>
-                        <input type="number" id="c-km" placeholder="Ej: 450" oninput="calcularCoche()">
-                    </div>
-                    <div class="input-group">
-                        <label>Consumo (L/100km)</label>
-                        <input type="number" id="c-consumo" value="7" step="0.1" oninput="calcularCoche()">
+                        <label>Litros totales estimados</label>
+                        <input type="number" id="c-litros" placeholder="Ej: 50" step="0.1" oninput="calcularCoche()">
                     </div>
                     <div class="input-group">
                         <label>Precio Gasolina (€/L)</label>
                         <input type="number" id="c-precioGas" value="1.65" step="0.01" oninput="calcularCoche()">
-                    </div>
-                    <div class="input-group">
-                        <label>Peajes Totales (€)</label>
-                        <input type="number" id="c-peajes" value="0" oninput="calcularCoche()">
                     </div>
                 </div>
             </div>
@@ -293,16 +285,12 @@ $gasto_total_transporte = $pdo->query("SELECT SUM(coste_total) FROM transporte")
     }
 
     function calcularCoche() {
-        const km = parseFloat(document.getElementById('c-km').value) || 0;
-        const consumo = parseFloat(document.getElementById('c-consumo').value) || 0;
+        const litros = parseFloat(document.getElementById('c-litros').value) || 0;
         const precioGas = parseFloat(document.getElementById('c-precioGas').value) || 0;
-        const peajes = parseFloat(document.getElementById('c-peajes').value) || 0;
 
-        const kmTotales = km * 2; 
-        const litrosNecesarios = (kmTotales / 100) * consumo;
-        const gastoGasolina = litrosNecesarios * precioGas;
+        // El coste total es simplemente litros por el precio
+        costeTotal = litros * precioGas;
         
-        costeTotal = gastoGasolina + (peajes * 2);
         actualizarPantallaTotal();
     }
 
